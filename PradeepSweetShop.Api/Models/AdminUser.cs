@@ -1,5 +1,3 @@
-using System;
-
 namespace PradeepSweetShop.Api.Models;
 
 public class AdminUser

@@ -11,10 +11,18 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
+    public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // ProductReview relation config
+        modelBuilder.Entity<ProductReview>()
+            .HasOne(r => r.Product)
+            .WithMany(p => p.Reviews)
+            .HasForeignKey(r => r.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Product to Category relation
         modelBuilder.Entity<Product>()

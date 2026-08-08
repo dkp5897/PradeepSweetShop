@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace PradeepSweetShop.Api.Models;
 
 public class Product
@@ -15,4 +12,5 @@ public class Product
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<ProductPrice> Prices { get; set; } = new List<ProductPrice>();
+    public ICollection<ProductReview> Reviews { get; set; } = new List<ProductReview>();
 }

@@ -18,6 +18,7 @@ import {
   TableCell,
   TableContainer,
   TableRow,
+  useTheme,
 } from "@mui/material";
 import {
   AccessTime,
@@ -56,16 +57,27 @@ export default function OrderTrackingPage({
   handleTrackSubmit,
   trackingLoading,
 }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const activeIndex = trackedOrder ? getActiveStepIndex(trackedOrder.orderStatus) : 0;
 
   return (
     <Container maxWidth="md">
       {/* Search Input */}
-      <Paper sx={{ p: 4, borderRadius: 4, mb: 4 }} elevation={0} variant="outlined">
-        <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 4,
+          borderRadius: 4,
+          mb: 4,
+          border: `1px solid ${theme.palette.divider}`,
+          bgcolor: isDark ? "#13151e" : "#fff",
+        }}
+      >
+        <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, color: "text.primary" }}>
           Track Your Sweets Order
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" sx={{ mb: 3, color: "text.secondary" }}>
           Enter your sweet order number to see real-time preparation and delivery status.
         </Typography>
 
@@ -74,16 +86,22 @@ export default function OrderTrackingPage({
             fullWidth
             placeholder="e.g. PSH-20260614-1234"
             required
+            size="small"
             value={trackingOrderNumber}
             onChange={(e) => setTrackingOrderNumber(e.target.value)}
             inputProps={{ style: { textTransform: "uppercase" } }}
           />
           <Button
             variant="contained"
-            color="primary"
             type="submit"
             disabled={trackingLoading}
-            sx={{ px: 4 }}
+            sx={{
+              px: 4,
+              borderRadius: 2,
+              fontWeight: 700,
+              background: "linear-gradient(135deg, #b45309, #f59e0b)",
+              "&:hover": { background: "linear-gradient(135deg, #92400e, #d97706)" },
+            }}
           >
             {trackingLoading ? "Tracking..." : "Track Status"}
           </Button>
@@ -92,7 +110,15 @@ export default function OrderTrackingPage({
 
       {/* Order Details */}
       {trackedOrder && (
-        <Paper sx={{ p: 4, borderRadius: 4 }} elevation={0} variant="outlined">
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            borderRadius: 4,
+            border: `1px solid ${theme.palette.divider}`,
+            bgcolor: isDark ? "#13151e" : "#fff",
+          }}
+        >
           {/* Order Header */}
           <Box
             sx={{
@@ -101,7 +127,7 @@ export default function OrderTrackingPage({
               flexWrap: "wrap",
               gap: 2,
               pb: 3,
-              borderBottom: "1px solid #f1f5f9",
+              borderBottom: `1px solid ${theme.palette.divider}`,
               mb: 4,
             }}
           >
@@ -112,15 +138,15 @@ export default function OrderTrackingPage({
               >
                 Real-Time Stepper Active
               </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5, color: "text.primary" }}>
                 Order Ref: {trackedOrder.orderNumber}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
                 Placed on {new Date(trackedOrder.orderDate).toLocaleString()}
               </Typography>
             </Box>
             <Box sx={{ textAlign: { sm: "right" } }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+              <Typography variant="caption" sx={{ display: "block", color: "text.secondary" }}>
                 Payment Method (COD)
               </Typography>
               <Chip
@@ -137,10 +163,10 @@ export default function OrderTrackingPage({
             <Box
               sx={{
                 p: 4,
-                bgcolor: "error.light",
+                bgcolor: isDark ? "rgba(239,68,68,0.1)" : "error.light",
                 borderRadius: 4,
                 textAlign: "center",
-                border: "1px solid #fee2e2",
+                border: `1px solid ${isDark ? "rgba(239,68,68,0.2)" : "#fee2e2"}`,
                 color: "error.main",
               }}
             >
@@ -154,7 +180,7 @@ export default function OrderTrackingPage({
             </Box>
           ) : (
             <Box sx={{ mb: 6 }}>
-              <Typography variant="h6" sx={{ fontWeight: 800, textAlign: "center", mb: 4 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, textAlign: "center", mb: 4, color: "text.primary" }}>
                 Live Preparation Timeline
               </Typography>
               <Stepper activeStep={activeIndex} alternativeLabel>
@@ -166,13 +192,12 @@ export default function OrderTrackingPage({
                         StepIconComponent={() => (
                           <Avatar
                             sx={{
-                              bgcolor: idx <= activeIndex ? "primary.main" : "grey.300",
+                              bgcolor: idx <= activeIndex ? "primary.main" : isDark ? "rgba(255,255,255,0.1)" : "grey.300",
                               color: "#fff",
                               width: 40,
                               height: 40,
                               transform: idx === activeIndex ? "scale(1.1)" : "none",
-                              boxShadow:
-                                idx === activeIndex ? "0 0 12px rgba(180, 83, 9, 0.4)" : "none",
+                              boxShadow: idx === activeIndex ? "0 0 12px rgba(180, 83, 9, 0.4)" : "none",
                               transition: "all 0.3s",
                             }}
                           >
@@ -180,7 +205,7 @@ export default function OrderTrackingPage({
                           </Avatar>
                         )}
                       >
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 1, color: "text.primary" }}>
                           {step.label}
                         </Typography>
                       </StepLabel>
@@ -192,36 +217,36 @@ export default function OrderTrackingPage({
           )}
 
           {/* Order Items & Delivery Info */}
-          <Grid container spacing={4} sx={{ pt: 4, borderTop: "1px solid #f1f5f9" }}>
+          <Grid container spacing={4} sx={{ pt: 4, borderTop: `1px solid ${theme.palette.divider}` }}>
             <Grid item xs={12} sm={6}>
               <Typography
                 variant="subtitle1"
-                sx={{ fontWeight: 800, mb: 2, display: "flex", alignItems: "center", gap: 1 }}
+                sx={{ fontWeight: 800, mb: 2, display: "flex", alignItems: "center", gap: 1, color: "text.primary" }}
               >
                 <Inventory color="primary" /> Ordered Items
               </Typography>
 
-              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
+              <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
                 <Table size="small">
                   <TableBody>
                     {trackedOrder.orderItems.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell sx={{ py: 1.5 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 755 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 755, color: "text.primary" }}>
                             {item.productName}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" sx={{ color: "text.secondary" }}>
                             {item.quantity} x {item.unitName}
                           </Typography>
                         </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 800 }}>
+                        <TableCell align="right" sx={{ fontWeight: 800, color: "text.primary" }}>
                           ₹{item.totalPrice}
                         </TableCell>
                       </TableRow>
                     ))}
-                    <TableRow sx={{ bgcolor: "primary.light" }}>
-                      <TableCell sx={{ fontWeight: 800, py: 1.5 }}>Total Bill</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 900, color: "primary.dark" }}>
+                    <TableRow sx={{ bgcolor: isDark ? "rgba(180,83,9,0.1)" : "primary.light" }}>
+                      <TableCell sx={{ fontWeight: 800, py: 1.5, color: "text.primary" }}>Total Bill</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 900, color: "primary.main" }}>
                         ₹{trackedOrder.totalAmount}
                       </TableCell>
                     </TableRow>
@@ -233,14 +258,19 @@ export default function OrderTrackingPage({
             <Grid item xs={12} sm={6}>
               <Typography
                 variant="subtitle1"
-                sx={{ fontWeight: 800, mb: 2, display: "flex", alignItems: "center", gap: 1 }}
+                sx={{ fontWeight: 800, mb: 2, display: "flex", alignItems: "center", gap: 1, color: "text.primary" }}
               >
                 <Place color="primary" /> Delivery Information
               </Typography>
 
               <Stack
                 spacing={2}
-                sx={{ p: 2.5, bgcolor: "#f8fafc", borderRadius: 3, border: "1px solid #f1f5f9" }}
+                sx={{
+                  p: 2.5,
+                  bgcolor: isDark ? "rgba(255,255,255,0.02)" : "#f8fafc",
+                  borderRadius: 3,
+                  border: `1px solid ${theme.palette.divider}`,
+                }}
               >
                 {[
                   { label: "Customer:", value: trackedOrder.customerName },
@@ -251,14 +281,14 @@ export default function OrderTrackingPage({
                     <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary", width: 90 }}>
                       {label}
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600, flex: 1, lineHeight: 1.4 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, flex: 1, lineHeight: 1.4, color: "text.primary" }}>
                       {value}
                     </Typography>
                   </Stack>
                 ))}
 
                 {trackedOrder.orderNotes && (
-                  <Box sx={{ pt: 1.5, borderTop: "1px solid #e2e8f0" }}>
+                  <Box sx={{ pt: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
                     <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic" }}>
                       <strong>Notes:</strong> "{trackedOrder.orderNotes}"
                     </Typography>

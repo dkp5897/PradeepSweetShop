@@ -1,4 +1,3 @@
-using System;
 using System.Security.Cryptography;
 
 namespace PradeepSweetShop.Api.Helpers;
@@ -17,10 +16,10 @@ public static class PasswordHasher
 
         // Hash the password with the salt using PBKDF2 static method (non-obsolete in modern .NET)
         byte[] hashBytes = Rfc2898DeriveBytes.Pbkdf2(
-            password, 
-            saltBytes, 
-            iterations: 100000, 
-            HashAlgorithmName.SHA256, 
+            password,
+            saltBytes,
+            iterations: 100000,
+            HashAlgorithmName.SHA256,
             outputLength: 32); // 256-bit hash
 
         string hash = Convert.ToBase64String(hashBytes);
@@ -35,10 +34,10 @@ public static class PasswordHasher
 
         // Hash input password with stored salt using static PBKDF2
         byte[] computedHashBytes = Rfc2898DeriveBytes.Pbkdf2(
-            password, 
-            saltBytes, 
-            iterations: 100000, 
-            HashAlgorithmName.SHA256, 
+            password,
+            saltBytes,
+            iterations: 100000,
+            HashAlgorithmName.SHA256,
             outputLength: 32);
 
         // Compare hash bytes (fixed time comparison to prevent timing attacks)

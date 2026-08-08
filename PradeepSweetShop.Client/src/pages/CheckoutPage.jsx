@@ -12,11 +12,15 @@ import {
   ListItemText,
   Divider,
   Stack,
+  useTheme,
 } from "@mui/material";
 import { Info } from "@mui/icons-material";
 import { api } from "../api";
 
 export default function CheckoutPage({ cart, setCart, getCartTotal, setCurrentPage, setTrackedOrder }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -73,10 +77,10 @@ export default function CheckoutPage({ cart, setCart, getCartTotal, setCurrentPa
   return (
     <Container maxWidth="lg">
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5 }}>
+        <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5, color: "text.primary" }}>
           Checkout Delivery Details
         </Typography>
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body1" sx={{ color: "text.secondary" }}>
           We will deliver fresh sweets straight from our shop. Cash on Delivery only.
         </Typography>
       </Box>
@@ -84,10 +88,18 @@ export default function CheckoutPage({ cart, setCart, getCartTotal, setCurrentPa
       <Grid container spacing={4}>
         {/* Delivery Form */}
         <Grid item xs={12} md={7}>
-          <Paper sx={{ p: 4, borderRadius: 4 }} elevation={0} variant="outlined">
+          <Paper
+            elevation={0}
+            sx={{
+              p: 4,
+              borderRadius: 4,
+              border: `1px solid ${theme.palette.divider}`,
+              bgcolor: isDark ? "#13151e" : "#fff",
+            }}
+          >
             <Typography
               variant="h5"
-              sx={{ fontWeight: 800, mb: 4, pb: 1, borderBottom: "1px solid #f1f5f9" }}
+              sx={{ fontWeight: 800, mb: 4, pb: 1, borderBottom: `1px solid ${theme.palette.divider}`, color: "text.primary" }}
             >
               Delivery Information
             </Typography>
@@ -157,12 +169,15 @@ export default function CheckoutPage({ cart, setCart, getCartTotal, setCurrentPa
 
               <Button
                 variant="contained"
-                color="primary"
                 type="submit"
                 size="large"
                 fullWidth
                 disabled={isSubmitting}
-                sx={{ py: 1.5, mt: 2 }}
+                sx={{
+                  py: 1.5, mt: 2, borderRadius: 2, fontWeight: 700,
+                  background: "linear-gradient(135deg, #b45309, #f59e0b)",
+                  "&:hover": { background: "linear-gradient(135deg, #92400e, #d97706)" },
+                }}
               >
                 {isSubmitting ? "Placing Order..." : `Confirm & Place Order (₹${getCartTotal()})`}
               </Button>
@@ -173,11 +188,16 @@ export default function CheckoutPage({ cart, setCart, getCartTotal, setCurrentPa
         {/* Order Summary */}
         <Grid item xs={12} md={5}>
           <Paper
-            sx={{ p: 3, borderRadius: 4, height: "fit-content" }}
             elevation={0}
-            variant="outlined"
+            sx={{
+              p: 3,
+              borderRadius: 4,
+              height: "fit-content",
+              border: `1px solid ${theme.palette.divider}`,
+              bgcolor: isDark ? "#13151e" : "#fff",
+            }}
           >
-            <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, mb: 3, color: "text.primary" }}>
               Order Summary
             </Typography>
 
@@ -190,30 +210,30 @@ export default function CheckoutPage({ cart, setCart, getCartTotal, setCurrentPa
                 >
                   <ListItemText
                     primary={item.productName}
-                    primaryTypographyProps={{ fontWeight: 700, variant: "subtitle2" }}
+                    primaryTypographyProps={{ fontWeight: 700, variant: "subtitle2", color: "text.primary" }}
                     secondary={`${item.quantity} x ${item.unit}`}
                   />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "text.primary" }}>
                     ₹{item.price * item.quantity}
                   </Typography>
                 </ListItem>
               ))}
             </List>
 
-            <Divider sx={{ my: 2 }} />
+            <Divider sx={{ my: 2, borderColor: theme.palette.divider }} />
 
             <Stack spacing={1.5}>
               <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   Delivery Fee
                 </Typography>
                 <Typography variant="body2" sx={{ color: "success.main", fontWeight: 700 }}>
                   FREE
                 </Typography>
               </Stack>
-              <Divider sx={{ borderStyle: "dashed" }} />
+              <Divider sx={{ borderStyle: "dashed", borderColor: theme.palette.divider }} />
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "text.primary" }}>
                   Grand Total
                 </Typography>
                 <Typography variant="h5" sx={{ fontWeight: 900, color: "primary.main" }}>
@@ -223,13 +243,18 @@ export default function CheckoutPage({ cart, setCart, getCartTotal, setCurrentPa
             </Stack>
 
             <Box
-              sx={{ mt: 4, p: 2, bgcolor: "primary.light", borderRadius: 2, border: "1px solid #fde68a" }}
+              sx={{
+                mt: 4, p: 2,
+                bgcolor: isDark ? "rgba(180,83,9,0.1)" : "primary.light",
+                borderRadius: 2,
+                border: `1px solid ${isDark ? "rgba(180,83,9,0.2)" : "#fde68a"}`,
+              }}
             >
               <Stack direction="row" spacing={1} alignItems="flex-start">
                 <Info color="primary" sx={{ mt: 0.25 }} />
                 <Typography
                   variant="caption"
-                  sx={{ color: "primary.dark", fontWeight: 600, lineHeight: 1.4 }}
+                  sx={{ color: isDark ? "#fbbf24" : "primary.dark", fontWeight: 600, lineHeight: 1.4 }}
                 >
                   <strong>Cash on Delivery (COD) Only</strong>. Payments will be collected in-person
                   upon sweet delivery. Order status updates in real-time.

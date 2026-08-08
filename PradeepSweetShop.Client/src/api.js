@@ -97,6 +97,19 @@ export const api = {
     method: "DELETE"
   }),
 
+  // Review Endpoints
+  getProductReviews: (productId) => apiRequest(`/products/${productId}/reviews`),
+  submitReview: (productId, reviewData) => apiRequest(`/products/${productId}/reviews`, {
+    method: "POST",
+    body: JSON.stringify(reviewData)
+  }),
+
+  // Admin Review Endpoints
+  getAdminReviews: () => apiRequest("/reviews/admin"),
+  deleteReview: (id) => apiRequest(`/reviews/${id}`, {
+    method: "DELETE"
+  }),
+
   // Admin Order Endpoints
   getAdminOrders: (status = "") => {
     const query = status ? `?status=${status}` : "";

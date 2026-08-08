@@ -6,18 +6,22 @@ import {
   Stack,
   Typography,
   Divider,
+  useTheme,
 } from "@mui/material";
 import { Store, Phone, Mail, Place } from "@mui/icons-material";
 
 export default function Footer({ setCurrentPage }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   return (
     <Box
       sx={{
-        bgcolor: "secondary.dark",
+        bgcolor: isDark ? "#0a0c14" : "#0f172a",
         color: "grey.400",
         pt: 8,
         pb: 4,
-        borderTop: "4px solid #b45309",
+        borderTop: "3px solid #b45309",
         mt: 10,
       }}
     >
@@ -44,35 +48,29 @@ export default function Footer({ setCurrentPage }) {
           <Grid item xs={12} sm={6} md={3}>
             <Typography
               variant="subtitle2"
-              sx={{ color: "primary.main", fontWeight: 800, mb: 2, textTransform: "uppercase" }}
+              sx={{ color: "primary.main", fontWeight: 800, mb: 2, textTransform: "uppercase", letterSpacing: 1, fontSize: 11 }}
             >
               Quick Links
             </Typography>
             <Stack spacing={1} sx={{ fontSize: 13 }}>
-              <Typography
-                onClick={() => setCurrentPage("home")}
-                sx={{ cursor: "pointer", "&:hover": { color: "#fff" } }}
-              >
-                Home
-              </Typography>
-              <Typography
-                onClick={() => setCurrentPage("shop")}
-                sx={{ cursor: "pointer", "&:hover": { color: "#fff" } }}
-              >
-                Menu Shop
-              </Typography>
-              <Typography
-                onClick={() => setCurrentPage("track")}
-                sx={{ cursor: "pointer", "&:hover": { color: "#fff" } }}
-              >
-                Track Order
-              </Typography>
-              <Typography
-                onClick={() => setCurrentPage("admin-login")}
-                sx={{ cursor: "pointer", "&:hover": { color: "#fff" } }}
-              >
-                Admin Login
-              </Typography>
+              {[
+                { label: "Home", page: "home" },
+                { label: "Menu Shop", page: "shop" },
+                { label: "Track Order", page: "track" },
+                { label: "Admin Login", page: "admin-login" },
+              ].map((link) => (
+                <Typography
+                  key={link.page}
+                  onClick={() => setCurrentPage(link.page)}
+                  sx={{
+                    cursor: "pointer",
+                    transition: "color 0.2s ease",
+                    "&:hover": { color: "#fff" },
+                  }}
+                >
+                  {link.label}
+                </Typography>
+              ))}
             </Stack>
           </Grid>
 
@@ -80,7 +78,7 @@ export default function Footer({ setCurrentPage }) {
           <Grid item xs={12} sm={6} md={3}>
             <Typography
               variant="subtitle2"
-              sx={{ color: "primary.main", fontWeight: 800, mb: 2, textTransform: "uppercase" }}
+              sx={{ color: "primary.main", fontWeight: 800, mb: 2, textTransform: "uppercase", letterSpacing: 1, fontSize: 11 }}
             >
               Working Hours
             </Typography>
@@ -95,7 +93,7 @@ export default function Footer({ setCurrentPage }) {
           <Grid item xs={12} sm={6} md={3}>
             <Typography
               variant="subtitle2"
-              sx={{ color: "primary.main", fontWeight: 800, mb: 2, textTransform: "uppercase" }}
+              sx={{ color: "primary.main", fontWeight: 800, mb: 2, textTransform: "uppercase", letterSpacing: 1, fontSize: 11 }}
             >
               Get in Touch
             </Typography>
@@ -114,13 +112,12 @@ export default function Footer({ setCurrentPage }) {
 
         </Grid>
 
-        <Divider sx={{ borderColor: "grey.800", mb: 3 }} />
+        <Divider sx={{ borderColor: "rgba(255,255,255,0.06)", mb: 3 }} />
         <Typography
           variant="caption"
           sx={{ display: "block", textAlign: "center", color: "grey.600" }}
         >
-          © {new Date().getFullYear()} Pradeep Sweets House. All rights reserved. Secure real-time
-          e-commerce setup.
+          © {new Date().getFullYear()} Pradeep Sweets House. All rights reserved.
         </Typography>
       </Container>
     </Box>

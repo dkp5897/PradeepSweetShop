@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace PradeepSweetShop.Api.DTOs;
 
 // --- AUTH DTOs ---
@@ -36,6 +33,8 @@ public class ProductResponseDto
     public string? CategoryName { get; set; }
     public string? ImageUrl { get; set; }
     public bool IsActive { get; set; }
+    public double AverageRating { get; set; }
+    public int ReviewCount { get; set; }
     public List<ProductPriceDto> Prices { get; set; } = [];
 }
 
@@ -47,6 +46,38 @@ public class ProductCreateUpdateRequest
     public string? ImageUrl { get; set; }
     public bool IsActive { get; set; } = true;
     public List<ProductPriceDto> Prices { get; set; } = [];
+}
+
+// --- REVIEW DTOs ---
+public class ProductReviewDto
+{
+    public int Id { get; set; }
+    public int ProductId { get; set; }
+    public required string CustomerName { get; set; }
+    public int Rating { get; set; }
+    public string? Comment { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class ReviewCreateRequest
+{
+    public required string CustomerName { get; set; }
+    public string? CustomerEmail { get; set; }
+    public int Rating { get; set; } // Must be 1 to 5
+    public string? Comment { get; set; }
+}
+
+public class AdminReviewDto
+{
+    public int Id { get; set; }
+    public int ProductId { get; set; }
+    public string? ProductName { get; set; }
+    public required string CustomerName { get; set; }
+    public string? CustomerEmail { get; set; }
+    public int Rating { get; set; }
+    public string? Comment { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public bool IsApproved { get; set; }
 }
 
 // --- ORDER DTOs ---
@@ -100,3 +131,4 @@ public class OrderStatusUpdateRequest
 {
     public required string Status { get; set; }
 }
+

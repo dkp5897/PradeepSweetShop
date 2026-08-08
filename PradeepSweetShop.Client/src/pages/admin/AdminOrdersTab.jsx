@@ -22,25 +22,42 @@ import {
   DialogContent,
   DialogActions,
   Grid,
+  useTheme,
 } from "@mui/material";
 import { ShoppingCart, Visibility, Close } from "@mui/icons-material";
 import { api } from "../../api";
 
-function getStatusChip(status) {
-  const map = {
-    Pending: <Chip label="Pending" color="warning" size="small" sx={{ fontWeight: 700 }} />,
-    Confirmed: <Chip label="Confirmed" color="info" size="small" sx={{ fontWeight: 700 }} />,
-    Preparing: <Chip label="Preparing" color="secondary" size="small" sx={{ fontWeight: 700 }} />,
-    OutForDelivery: <Chip label="Out For Delivery" color="primary" size="small" sx={{ fontWeight: 700 }} />,
-    Delivered: <Chip label="Delivered" color="success" size="small" sx={{ fontWeight: 700 }} />,
-    Cancelled: <Chip label="Cancelled" color="error" size="small" sx={{ fontWeight: 700 }} />,
-  };
-  return map[status] || <Chip label={status} size="small" />;
+const STATUS_COLORS = {
+  Pending: { bg: "#fef3c7", color: "#92400e", dot: "#f59e0b" },
+  Confirmed: { bg: "#dbeafe", color: "#1e40af", dot: "#3b82f6" },
+  Preparing: { bg: "#ede9fe", color: "#5b21b6", dot: "#8b5cf6" },
+  OutForDelivery: { bg: "#fce7f3", color: "#9d174d", dot: "#ec4899" },
+  Delivered: { bg: "#dcfce7", color: "#166534", dot: "#22c55e" },
+  Cancelled: { bg: "#fee2e2", color: "#991b1b", dot: "#ef4444" },
+};
+
+function StatusChip({ status }) {
+  const s = STATUS_COLORS[status] || { bg: "#f1f5f9", color: "#475569", dot: "#94a3b8" };
+  const label = status === "OutForDelivery" ? "Out For Delivery" : status;
+  return (
+    <Chip
+      size="small"
+      label={
+        <Stack direction="row" spacing={0.75} alignItems="center">
+          <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: s.dot }} />
+          <span>{label}</span>
+        </Stack>
+      }
+      sx={{ bgcolor: s.bg, color: s.color, fontWeight: 700, fontSize: 11, height: 26, border: "none" }}
+    />
+  );
 }
 
 const STATUS_OPTIONS = ["Pending", "Confirmed", "Preparing", "OutForDelivery", "Delivered", "Cancelled"];
 
 export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilter, setOrderFilter }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   const handleStatusChange = async (orderId, newStatus) => {
@@ -50,45 +67,38 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
       if (selectedOrder && selectedOrder.id === orderId) {
         setSelectedOrder((prev) => ({ ...prev, orderStatus: newStatus }));
       }
-      alert(`Order status updated to: ${newStatus}`);
     } catch (err) {
       alert("Failed to update status. " + err.message);
     }
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+    <Box>
       {/* Header */}
       <Stack
         direction={{ xs: "column", sm: "row" }}
         justifyContent="space-between"
         alignItems={{ sm: "center" }}
         spacing={2}
-        sx={{ mb: 4, pb: 2, borderBottom: "1px solid #f1f5f9" }}
+        sx={{ mb: 3 }}
       >
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
-            Manage Sweets Orders
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Filter, process, and change order status states in real-time.
+          <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 13 }}>
+            Filter, process, and update order statuses in real-time.
           </Typography>
         </Box>
-
-        <FormControl size="small" sx={{ minWidth: 160 }}>
+        <FormControl size="small" sx={{ minWidth: 180 }}>
           <InputLabel id="order-filter-label">Filter Status</InputLabel>
           <Select
             labelId="order-filter-label"
             value={orderFilter}
             label="Filter Status"
             onChange={(e) => setOrderFilter(e.target.value)}
-            sx={{ fontWeight: 700 }}
+            sx={{ fontWeight: 600, borderRadius: 2, fontSize: 13 }}
           >
             <MenuItem value="">All Statuses</MenuItem>
             {STATUS_OPTIONS.map((s) => (
-              <MenuItem key={s} value={s}>
-                {s === "OutForDelivery" ? "Out For Delivery" : s}
-              </MenuItem>
+              <MenuItem key={s} value={s}>{s === "OutForDelivery" ? "Out For Delivery" : s}</MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -96,63 +106,92 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
 
       {/* Orders Table */}
       {adminOrders.length === 0 ? (
-        <Box sx={{ py: 8, textAlign: "center" }}>
-          <ShoppingCart sx={{ fontSize: 50, color: "text.secondary", opacity: 0.2, mb: 1 }} />
-          <Typography variant="body1" color="text.secondary">
+        <Paper
+          elevation={0}
+          sx={{
+            py: 10,
+            textAlign: "center",
+            borderRadius: 3,
+            border: `1px solid ${theme.palette.divider}`,
+            bgcolor: isDark ? "#13151e" : "#fff",
+          }}
+        >
+          <ShoppingCart sx={{ fontSize: 48, color: "text.secondary", opacity: 0.15, mb: 1 }} />
+          <Typography variant="body1" sx={{ color: "text.secondary" }}>
             No orders found.
           </Typography>
-        </Box>
+        </Paper>
       ) : (
-        <TableContainer component={Paper} elevation={0} variant="outlined" sx={{ borderRadius: 3 }}>
+        <TableContainer
+          component={Paper}
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            border: `1px solid ${theme.palette.divider}`,
+            bgcolor: isDark ? "#13151e" : "#fff",
+          }}
+        >
           <Table>
             <TableHead>
               <TableRow>
                 <TableCell>Order Ref</TableCell>
-                <TableCell>Customer Details</TableCell>
-                <TableCell>Order Date</TableCell>
-                <TableCell>Total Amount</TableCell>
+                <TableCell>Customer</TableCell>
+                <TableCell>Date</TableCell>
+                <TableCell>Amount</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Actions</TableCell>
+                <TableCell>Update</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {adminOrders.map((order) => (
-                <TableRow key={order.id} hover>
+                <TableRow
+                  key={order.id}
+                  hover
+                  sx={{
+                    cursor: "pointer",
+                    "&:hover": { bgcolor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)" },
+                  }}
+                >
                   <TableCell>
                     <Button
                       variant="text"
-                      color="primary"
                       onClick={() => setSelectedOrder(order)}
-                      startIcon={<Visibility />}
-                      sx={{ fontWeight: 700 }}
+                      startIcon={<Visibility sx={{ fontSize: "14px !important" }} />}
+                      sx={{ fontWeight: 700, fontSize: 13, p: 0, minWidth: 0 }}
                     >
                       {order.orderNumber}
                     </Button>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: 13, color: "text.primary" }}>
                       {order.customerName}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 11 }}>
                       {order.customerPhone}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="caption">
-                      {new Date(order.orderDate).toLocaleString()}
+                    <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 12 }}>
+                      {new Date(order.orderDate).toLocaleDateString()}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 900 }}>₹{order.totalAmount}</TableCell>
-                  <TableCell>{getStatusChip(order.orderStatus)}</TableCell>
+                  <TableCell>
+                    <Typography sx={{ fontWeight: 800, fontSize: 14, color: "text.primary" }}>
+                      ₹{order.totalAmount}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <StatusChip status={order.orderStatus} />
+                  </TableCell>
                   <TableCell>
                     <Select
                       size="small"
                       value={order.orderStatus}
                       onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                      sx={{ fontSize: 12, fontWeight: 700 }}
+                      sx={{ fontSize: 12, fontWeight: 600, borderRadius: 2, minWidth: 130 }}
                     >
                       {STATUS_OPTIONS.map((s) => (
-                        <MenuItem key={s} value={s}>
+                        <MenuItem key={s} value={s} sx={{ fontSize: 12 }}>
                           {s === "OutForDelivery" ? "Out For Delivery" : s}
                         </MenuItem>
                       ))}
@@ -167,29 +206,31 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
 
       {/* Order Detail Dialog */}
       {selectedOrder && (
-        <Dialog
-          open={!!selectedOrder}
-          onClose={() => setSelectedOrder(null)}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="h5" sx={{ fontWeight: 800 }}>
-              Order Ref: {selectedOrder.orderNumber}
-            </Typography>
-            <IconButton onClick={() => setSelectedOrder(null)}>
+        <Dialog open={!!selectedOrder} onClose={() => setSelectedOrder(null)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pb: 1 }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                Order: {selectedOrder.orderNumber}
+              </Typography>
+              <StatusChip status={selectedOrder.orderStatus} />
+            </Box>
+            <IconButton onClick={() => setSelectedOrder(null)} size="small">
               <Close />
             </IconButton>
           </DialogTitle>
           <DialogContent dividers>
             <Stack spacing={3}>
               {/* Customer Details */}
-              <Box sx={{ p: 2.5, bgcolor: "#f8fafc", borderRadius: 3, border: "1px solid #f1f5f9" }}>
-                <Typography
-                  variant="subtitle2"
-                  color="primary"
-                  sx={{ fontWeight: 755, mb: 1.5, textTransform: "uppercase" }}
-                >
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2,
+                  bgcolor: isDark ? "rgba(255,255,255,0.03)" : "#f8fafc",
+                  border: `1px solid ${theme.palette.divider}`,
+                }}
+              >
+                <Typography sx={{ fontWeight: 700, fontSize: 11, color: "primary.main", mb: 1.5, textTransform: "uppercase", letterSpacing: 1 }}>
                   Customer Details
                 </Typography>
                 <Grid container spacing={1} sx={{ fontSize: 13 }}>
@@ -204,27 +245,23 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
                   {selectedOrder.orderNotes && (
                     <>
                       <Grid item xs={3}><strong>Notes:</strong></Grid>
-                      <Grid item xs={9}>
-                        <span style={{ fontStyle: "italic" }}>"{selectedOrder.orderNotes}"</span>
-                      </Grid>
+                      <Grid item xs={9}><em>"{selectedOrder.orderNotes}"</em></Grid>
                     </>
                   )}
                 </Grid>
-              </Box>
+              </Paper>
 
               {/* Status Update */}
               <Stack direction="row" spacing={2} alignItems="center">
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  Order Status:
-                </Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: 13 }}>Update Status:</Typography>
                 <Select
                   size="small"
                   value={selectedOrder.orderStatus}
                   onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value)}
-                  sx={{ minWidth: 160 }}
+                  sx={{ minWidth: 160, fontSize: 13, borderRadius: 2 }}
                 >
                   {STATUS_OPTIONS.map((s) => (
-                    <MenuItem key={s} value={s}>
+                    <MenuItem key={s} value={s} sx={{ fontSize: 13 }}>
                       {s === "OutForDelivery" ? "Out For Delivery" : s}
                     </MenuItem>
                   ))}
@@ -233,14 +270,14 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
 
               {/* Items Table */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
-                  Sweets Ordered
+                <Typography sx={{ fontWeight: 700, fontSize: 11, color: "primary.main", mb: 1.5, textTransform: "uppercase", letterSpacing: 1 }}>
+                  Items Ordered
                 </Typography>
-                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
+                <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell>Sweet Item</TableCell>
+                        <TableCell>Item</TableCell>
                         <TableCell>Variant</TableCell>
                         <TableCell align="center">Qty</TableCell>
                         <TableCell align="right">Price</TableCell>
@@ -249,17 +286,17 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
                     <TableBody>
                       {selectedOrder.orderItems.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell sx={{ fontWeight: 700 }}>{item.productName}</TableCell>
-                          <TableCell>{item.unitName}</TableCell>
-                          <TableCell align="center">{item.quantity}</TableCell>
-                          <TableCell align="right">₹{item.totalPrice}</TableCell>
+                          <TableCell sx={{ fontWeight: 600, fontSize: 13 }}>{item.productName}</TableCell>
+                          <TableCell sx={{ fontSize: 12 }}>{item.unitName}</TableCell>
+                          <TableCell align="center" sx={{ fontSize: 13 }}>{item.quantity}</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 700, fontSize: 13 }}>₹{item.totalPrice}</TableCell>
                         </TableRow>
                       ))}
-                      <TableRow sx={{ bgcolor: "primary.light" }}>
-                        <TableCell colSpan={3} sx={{ fontWeight: 800 }}>
+                      <TableRow>
+                        <TableCell colSpan={3} sx={{ fontWeight: 800, fontSize: 13, borderBottom: "none" }}>
                           Grand Total
                         </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 900, color: "primary.dark" }}>
+                        <TableCell align="right" sx={{ fontWeight: 900, fontSize: 15, color: "primary.main", borderBottom: "none" }}>
                           ₹{selectedOrder.totalAmount}
                         </TableCell>
                       </TableRow>
@@ -269,13 +306,13 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
               </Box>
             </Stack>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setSelectedOrder(null)} variant="outlined">
+          <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setSelectedOrder(null)} variant="outlined" sx={{ borderRadius: 2 }}>
               Close
             </Button>
           </DialogActions>
         </Dialog>
       )}
-    </Paper>
+    </Box>
   );
 }

@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ThemeProvider, CssBaseline, Box, Snackbar, Alert } from "@mui/material";
 
-import theme from "./theme";
+import getTheme from "./theme";
+import { ThemeModeProvider, useThemeMode } from "./context/ThemeContext";
 import { api, createHubConnection } from "./api";
 
 // Shared Components
@@ -19,8 +20,11 @@ import OrderTrackingPage from "./pages/OrderTrackingPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminPortal from "./pages/admin/AdminPortal";
 
-export default function App() {
-  // Navigation State: 'home' | 'shop' | 'checkout' | 'track' | 'admin-login' | 'admin'
+function AppContent() {
+  const { mode } = useThemeMode();
+  const theme = useMemo(() => getTheme(mode), [mode]);
+
+  // Navigation State
   const [currentPage, setCurrentPage] = useState("home");
 
   // Shop & Category State
@@ -241,7 +245,6 @@ export default function App() {
         ];
       }
     });
-    setIsCartOpen(true);
   };
 
   const handleUpdateCartQty = (productId, variantId, delta) => {
@@ -295,10 +298,12 @@ export default function App() {
     }
   };
 
+  const isAdmin = currentPage === "admin" || currentPage === "admin-login";
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
 
         {/* Live Status Alert Snackbar */}
         <Snackbar
@@ -318,17 +323,19 @@ export default function App() {
         </Snackbar>
 
         {/* Top Navigation Bar */}
-        <Navbar
-          currentPage={currentPage}
-          setCurrentPage={setCurrentPage}
-          cart={cart}
-          setIsCartOpen={setIsCartOpen}
-          fetchProducts={fetchProducts}
-          adminToken={adminToken}
-        />
+        {!isAdmin && (
+          <Navbar
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            cart={cart}
+            setIsCartOpen={setIsCartOpen}
+            fetchProducts={fetchProducts}
+            adminToken={adminToken}
+          />
+        )}
 
         {/* Page Content */}
-        <Box sx={{ flexGrow: 1, py: currentPage === "home" ? 0 : 4 }}>
+        <Box sx={{ flexGrow: 1, py: currentPage === "home" || isAdmin ? 0 : 4 }}>
           {currentPage === "home" && (
             <HomePage
               setCurrentPage={setCurrentPage}
@@ -397,12 +404,13 @@ export default function App() {
               setNotifications={setNotifications}
               orderFilter={orderFilter}
               setOrderFilter={setOrderFilter}
+              setCurrentPage={setCurrentPage}
             />
           )}
         </Box>
 
         {/* Footer */}
-        <Footer setCurrentPage={setCurrentPage} />
+        {!isAdmin && <Footer setCurrentPage={setCurrentPage} />}
 
         {/* Cart Slide-Out Drawer */}
         <CartDrawer
@@ -416,5 +424,13 @@ export default function App() {
 
       </Box>
     </ThemeProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeModeProvider>
+      <AppContent />
+    </ThemeModeProvider>
   );
 }

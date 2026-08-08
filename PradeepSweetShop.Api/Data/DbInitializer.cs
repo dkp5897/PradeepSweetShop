@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using PradeepSweetShop.Api.Helpers;
 using PradeepSweetShop.Api.Models;
 
@@ -60,7 +57,7 @@ public static class DbInitializer
                 Description = "A classic cashew fudge sweet, decorated with edible silver leaf. Perfect for festivals.",
                 CategoryId = dryFruitCat.Id,
                 ImageUrl = "https://images.unsplash.com/photo-1605197586541-89814806e0f6?auto=format&fit=crop&q=80&w=400",
-                Prices = 
+                Prices =
                 [
                     new() { Unit = "1 Kg", Price = 1000 },
                     new() { Unit = "500 Gm", Price = 500 },
@@ -74,7 +71,7 @@ public static class DbInitializer
                 Description = "Soft, melt-in-the-mouth laddoos made from tiny gram flour balls fried in pure ghee and soaked in cardamom syrup.",
                 CategoryId = gheeCat.Id,
                 ImageUrl = "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&q=80&w=400",
-                Prices = 
+                Prices =
                 [
                     new() { Unit = "1 Kg", Price = 400 },
                     new() { Unit = "500 Gm", Price = 200 },
@@ -88,7 +85,7 @@ public static class DbInitializer
                 Description = "Spongy, juicy traditional Bengali sweets made from fresh chhena (cottage cheese) cooked in light sugar syrup.",
                 CategoryId = bengaliCat.Id,
                 ImageUrl = "https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&q=80&w=400",
-                Prices = 
+                Prices =
                 [
                     new() { Unit = "1 Kg (12-14 Pcs)", Price = 320 },
                     new() { Unit = "500 Gm (6-7 Pcs)", Price = 160 },
@@ -102,7 +99,7 @@ public static class DbInitializer
                 Description = "Golden-brown milk-solid dumplings, deep-fried and soaked in a warm, fragrant rose and cardamom syrup.",
                 CategoryId = milkCat.Id,
                 ImageUrl = "https://images.unsplash.com/photo-1548690312-e3b507d8c110?auto=format&fit=crop&q=80&w=400",
-                Prices = 
+                Prices =
                 [
                     new() { Unit = "1 Kg", Price = 360 },
                     new() { Unit = "500 Gm", Price = 180 },
@@ -116,7 +113,7 @@ public static class DbInitializer
                 Description = "Soft, flattened chhena patties soaked in sweet, thickened milk, flavored with saffron, cardamom, and chopped pistachios.",
                 CategoryId = milkCat.Id,
                 ImageUrl = "https://images.unsplash.com/photo-1627916607164-7b20241db935?auto=format&fit=crop&q=80&w=400",
-                Prices = 
+                Prices =
                 [
                     new() { Unit = "Piece", Price = 40 },
                     new() { Unit = "Plate (2 Pcs)", Price = 75 }
@@ -142,7 +139,7 @@ public static class DbInitializer
                 Description = "Flaky, crisp, and extremely light sweet made from gram flour, sugar, ghee, and milk, garnished with dry fruits.",
                 CategoryId = gheeCat.Id,
                 ImageUrl = "https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&q=80&w=400",
-                Prices = 
+                Prices =
                 [
                     new ProductPrice { Unit = "1 Kg Box", Price = 380 },
                     new ProductPrice { Unit = "500 Gm Box", Price = 200 }
@@ -155,7 +152,7 @@ public static class DbInitializer
                 Description = "Crispy golden pastry triangles stuffed with a spicy mixture of mashed potatoes, green peas, and fragrant herbs.",
                 CategoryId = snacksCat.Id,
                 ImageUrl = "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?auto=format&fit=crop&q=80&w=400",
-                Prices = 
+                Prices =
                 [
                     new ProductPrice { Unit = "Piece", Price = 15 },
                     new ProductPrice { Unit = "Plate (2 Pcs with Chutney)", Price = 30 }
@@ -168,7 +165,7 @@ public static class DbInitializer
                 Description = "A popular Rajasthani snack consisting of a flaky pastry stuffed with a spiced onion filling.",
                 CategoryId = snacksCat.Id,
                 ImageUrl = "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?auto=format&fit=crop&q=80&w=400",
-                Prices = 
+                Prices =
                 [
                     new ProductPrice { Unit = "Piece", Price = 20 }
                 ]
@@ -233,7 +230,7 @@ public static class DbInitializer
                 PaymentMethod = "CashOnDelivery",
                 PaymentStatus = "Pending",
                 OrderNotes = "Deliver hot and include extra chutney.",
-                OrderItems = 
+                OrderItems =
                 [
                     new(){
                         ProductId = samosa.Id,
@@ -255,7 +252,7 @@ public static class DbInitializer
                 TotalAmount = kajuPrice.Price * 2,
                 PaymentMethod = "CashOnDelivery",
                 PaymentStatus = "Completed",
-                OrderItems = 
+                OrderItems =
                 [
                     new(){
                         ProductId = kajuKatli.Id,

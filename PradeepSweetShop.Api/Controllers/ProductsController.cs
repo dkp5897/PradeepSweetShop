@@ -45,6 +45,10 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
                 CategoryName = p.Category!.Name,
                 ImageUrl = p.ImageUrl,
                 IsActive = p.IsActive,
+                AverageRating = p.Reviews.Any(r => r.IsApproved)
+                    ? Math.Round(p.Reviews.Where(r => r.IsApproved).Select(r => (double)r.Rating).Average(), 1)
+                    : 0,
+                ReviewCount = p.Reviews.Count(r => r.IsApproved),
                 Prices = p.Prices
                     .Where(pr => pr.IsAvailable)
                     .Select(pr => new ProductPriceDto
@@ -79,6 +83,10 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
                 CategoryName = p.Category!.Name,
                 ImageUrl = p.ImageUrl,
                 IsActive = p.IsActive,
+                AverageRating = p.Reviews.Any(r => r.IsApproved)
+                    ? Math.Round(p.Reviews.Where(r => r.IsApproved).Select(r => (double)r.Rating).Average(), 1)
+                    : 0,
+                ReviewCount = p.Reviews.Count(r => r.IsApproved),
                 Prices = p.Prices.Select(pr => new ProductPriceDto
                 {
                     Id = pr.Id,
@@ -100,6 +108,7 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
         var product = await _context.Products
             .Include(p => p.Category)
             .Include(p => p.Prices)
+            .Include(p => p.Reviews)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (product == null)
@@ -107,6 +116,7 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
             return NotFound(new { message = "Product not found." });
         }
 
+        var approvedReviews = product.Reviews.Where(r => r.IsApproved).ToList();
         var dto = new ProductResponseDto
         {
             Id = product.Id,
@@ -116,6 +126,8 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
             CategoryName = product.Category?.Name,
             ImageUrl = product.ImageUrl,
             IsActive = product.IsActive,
+            AverageRating = approvedReviews.Any() ? Math.Round(approvedReviews.Select(r => (double)r.Rating).Average(), 1) : 0,
+            ReviewCount = approvedReviews.Count,
             Prices = [.. product.Prices.Select(pr => new ProductPriceDto
             {
                 Id = pr.Id,

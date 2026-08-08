@@ -11,6 +11,7 @@ import {
   Avatar,
   Paper,
   Chip,
+  useTheme,
 } from "@mui/material";
 import {
   ShoppingBag,
@@ -23,12 +24,20 @@ import {
 import ProductCard from "../components/ProductCard";
 
 export default function HomePage({ setCurrentPage, categories, handleCategorySelect, products, handleAddToCart }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const specials = products.slice(0, 3);
 
   return (
     <Box>
       {/* HERO SECTION */}
-      <Box sx={{ bgcolor: "primary.light", py: { xs: 8, md: 12 }, borderBottom: "1px solid #fde68a" }}>
+      <Box
+        sx={{
+          bgcolor: isDark ? "rgba(180,83,9,0.06)" : "primary.light",
+          py: { xs: 8, md: 12 },
+          borderBottom: `1px solid ${isDark ? "rgba(180,83,9,0.15)" : "#fde68a"}`,
+        }}
+      >
         <Container maxWidth="lg">
           <Grid container spacing={6} alignItems="center">
             <Grid item xs={12} md={7}>
@@ -36,30 +45,43 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
                 <Box>
                   <Chip
                     label="Traditional Taste, Modern Hygiene"
-                    color="primary"
-                    sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: 11, px: 1 }}
+                    sx={{
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      fontSize: 11,
+                      px: 1,
+                      bgcolor: isDark ? "rgba(180,83,9,0.2)" : undefined,
+                      color: isDark ? "#fbbf24" : undefined,
+                    }}
+                    color={isDark ? undefined : "primary"}
                   />
                 </Box>
                 <Typography
                   variant="h2"
-                  sx={{ fontSize: { xs: 40, md: 56 }, color: "secondary.dark", fontWeight: 900, lineHeight: 1.15 }}
+                  sx={{ fontSize: { xs: 40, md: 56 }, color: "text.primary", fontWeight: 900, lineHeight: 1.15 }}
                 >
                   Celebrate Life with{" "}
                   <Box component="span" sx={{ color: "primary.main" }}>
                     Pure Sweets
                   </Box>
                 </Typography>
-                <Typography variant="body1" sx={{ fontSize: 18, color: "secondary.light", maxWidth: 540 }}>
+                <Typography variant="body1" sx={{ fontSize: 18, color: "text.secondary", maxWidth: 540 }}>
                   Welcome to Pradeep Sweets House. Indulge in our premium range of Ghee Laddu, Cashew
                   Katli, soft Bengali Rasgulla, and fresh savories crafted by master chefs.
                 </Typography>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ pt: 2 }}>
                   <Button
                     variant="contained"
-                    color="primary"
                     size="large"
                     onClick={() => setCurrentPage("shop")}
                     endIcon={<ShoppingBag />}
+                    sx={{
+                      background: "linear-gradient(135deg, #b45309, #f59e0b)",
+                      boxShadow: "0 4px 12px rgba(180,83,9,0.3)",
+                      "&:hover": { background: "linear-gradient(135deg, #92400e, #d97706)" },
+                      borderRadius: 2,
+                      py: 1.5,
+                    }}
                   >
                     Order Fresh Sweets Now
                   </Button>
@@ -68,6 +90,7 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
                     color="primary"
                     size="large"
                     onClick={() => setCurrentPage("track")}
+                    sx={{ borderRadius: 2, py: 1.5 }}
                   >
                     Track Live Order
                   </Button>
@@ -82,7 +105,7 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
                     position: "absolute",
                     inset: -15,
                     bgcolor: "primary.main",
-                    opacity: 0.1,
+                    opacity: isDark ? 0.06 : 0.1,
                     borderRadius: "50%",
                     filter: "blur(30px)",
                   }}
@@ -95,8 +118,8 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
                     width: { xs: 320, sm: 400 },
                     height: 360,
                     borderRadius: 8,
-                    boxShadow: "0 20px 40px rgba(180, 83, 9, 0.15)",
-                    border: "6px solid #fff",
+                    boxShadow: isDark ? "0 20px 40px rgba(0,0,0,0.4)" : "0 20px 40px rgba(180, 83, 9, 0.15)",
+                    border: `6px solid ${isDark ? "rgba(255,255,255,0.06)" : "#fff"}`,
                     position: "relative",
                     zIndex: 2,
                   }}
@@ -110,10 +133,10 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
       {/* CATEGORIES SECTION */}
       <Container maxWidth="lg" sx={{ py: 10 }}>
         <Box sx={{ textAlign: "center", mb: 6 }}>
-          <Typography variant="h3" sx={{ fontWeight: 800, mb: 1.5 }}>
+          <Typography variant="h3" sx={{ fontWeight: 800, mb: 1.5, color: "text.primary" }}>
             Browse Sweet Categories
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body1" sx={{ color: "text.secondary" }}>
             Pick your favorite category to explore mouth-watering fresh varieties.
           </Typography>
         </Box>
@@ -128,25 +151,28 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
           {categories.map((cat) => (
             <Card
               key={cat.id}
-              onClick={() => {
-                handleCategorySelect(cat.id);
-                setCurrentPage("shop");
-              }}
+              onClick={() => { handleCategorySelect(cat.id); setCurrentPage("shop"); }}
               sx={{
                 textAlign: "center",
                 p: 3,
                 cursor: "pointer",
                 transition: "all 0.3s",
-                bgcolor: "#fffdf9",
-                border: "1px solid rgba(180, 83, 9, 0.08)",
+                bgcolor: isDark ? "rgba(255,255,255,0.03)" : "#fffdf9",
+                border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(180,83,9,0.08)"}`,
                 "&:hover": {
                   transform: "translateY(-4px)",
-                  boxShadow: "0 10px 25px rgba(180, 83, 9, 0.1)",
-                  bgcolor: "primary.light",
+                  boxShadow: isDark ? "0 10px 25px rgba(0,0,0,0.3)" : "0 10px 25px rgba(180,83,9,0.1)",
+                  bgcolor: isDark ? "rgba(180,83,9,0.1)" : "primary.light",
                 },
               }}
             >
-              <Avatar sx={{ bgcolor: "primary.main", width: 56, height: 56, mx: "auto", mb: 2, boxShadow: 1 }}>
+              <Avatar
+                sx={{
+                  background: "linear-gradient(135deg, #b45309, #f59e0b)",
+                  width: 56, height: 56, mx: "auto", mb: 2,
+                  boxShadow: "0 4px 12px rgba(180,83,9,0.25)",
+                }}
+              >
                 <Layers />
               </Avatar>
               <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "text.primary", mb: 1 }}>
@@ -154,8 +180,8 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
               </Typography>
               <Typography
                 variant="caption"
-                color="text.secondary"
                 sx={{
+                  color: "text.secondary",
                   display: "-webkit-box",
                   overflow: "hidden",
                   WebkitBoxOrient: "vertical",
@@ -172,19 +198,19 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
       {/* TODAY'S SPECIALS */}
       <Box
         sx={{
-          bgcolor: "#f8fafc",
+          bgcolor: isDark ? "rgba(255,255,255,0.02)" : "#f8fafc",
           py: 10,
-          borderTop: "1px solid #f1f5f9",
-          borderBottom: "1px solid #f1f5f9",
+          borderTop: `1px solid ${theme.palette.divider}`,
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
         <Container maxWidth="lg">
           <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mb: 5 }}>
             <Box>
-              <Typography variant="h3" sx={{ fontWeight: 800, mb: 1 }}>
+              <Typography variant="h3" sx={{ fontWeight: 800, mb: 1, color: "text.primary" }}>
                 Today's Sweet Specials
               </Typography>
-              <Typography variant="body1" color="text.secondary">
+              <Typography variant="body1" sx={{ color: "text.secondary" }}>
                 Handcrafted and fresh from our kitchen today.
               </Typography>
             </Box>
@@ -211,33 +237,35 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
       <Container maxWidth="lg" sx={{ py: 10 }}>
         <Grid container spacing={4}>
           {[
-            {
-              icon: <CheckCircle />,
-              title: "100% Pure Desi Ghee",
-              desc: "We use only premium quality ingredients and 100% pure milk fat (Desi Ghee) for traditional flavor.",
-            },
-            {
-              icon: <AccessTime />,
-              title: "Real-Time Tracking",
-              desc: "Monitor your order's status in real-time from the moment it is confirmed until it reaches your door.",
-            },
-            {
-              icon: <LocalShipping />,
-              title: "Hygienic Home Delivery",
-              desc: "Our deliveries are handled securely following contact-free and high hygienic packaging standards.",
-            },
+            { icon: <CheckCircle />, title: "100% Pure Desi Ghee", desc: "We use only premium quality ingredients and 100% pure milk fat (Desi Ghee) for traditional flavor." },
+            { icon: <AccessTime />, title: "Real-Time Tracking", desc: "Monitor your order's status in real-time from the moment it is confirmed until it reaches your door." },
+            { icon: <LocalShipping />, title: "Hygienic Home Delivery", desc: "Our deliveries are handled securely following contact-free and high hygienic packaging standards." },
           ].map((item) => (
             <Grid item xs={12} md={4} key={item.title}>
-              <Paper elevation={0} sx={{ p: 4, textAlign: "center", border: "1px solid #f1f5f9" }}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 4,
+                  textAlign: "center",
+                  border: `1px solid ${theme.palette.divider}`,
+                  bgcolor: isDark ? "rgba(255,255,255,0.02)" : "#fff",
+                  transition: "all 0.2s ease",
+                  "&:hover": { transform: "translateY(-4px)", boxShadow: isDark ? "0 8px 20px rgba(0,0,0,0.3)" : "0 8px 20px rgba(180,83,9,0.08)" },
+                }}
+              >
                 <Avatar
-                  sx={{ bgcolor: "primary.light", color: "primary.main", width: 48, height: 48, mx: "auto", mb: 2 }}
+                  sx={{
+                    bgcolor: isDark ? "rgba(180,83,9,0.15)" : "primary.light",
+                    color: "primary.main",
+                    width: 48, height: 48, mx: "auto", mb: 2,
+                  }}
                 >
                   {item.icon}
                 </Avatar>
-                <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, mb: 1, color: "text.primary" }}>
                   {item.title}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   {item.desc}
                 </Typography>
               </Paper>

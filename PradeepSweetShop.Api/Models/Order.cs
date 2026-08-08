@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace PradeepSweetShop.Api.Models;
 
 public class Order
