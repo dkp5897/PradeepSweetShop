@@ -11,6 +11,6 @@ public class Product
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public ICollection<ProductPrice> Prices { get; set; } = new List<ProductPrice>();
-    public ICollection<ProductReview> Reviews { get; set; } = new List<ProductReview>();
+    public ICollection<ProductPrice> Prices { get; set; } = [];
+    public ICollection<ProductReview> Reviews { get; set; } = [];
 }

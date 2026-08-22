@@ -32,3 +32,9 @@ Thumbs.db
 # IDE specific
 .gemini/
 .idea/
+
+# Application logs & local dotnet tool outputs
+Logs/
+**/Logs/
+.dotnet/
+

@@ -74,17 +74,68 @@ function AppContent() {
 
   // ---- Admin: SignalR + Data Sync on Auth Change ----
   useEffect(() => {
+    let isCancelled = false;
+    let connection = null;
+
     if (adminToken) {
       fetchAdminData();
-      setupSignalRAdmin();
-    } else {
-      if (hubConnectionRef.current) {
-        hubConnectionRef.current.stop();
-        hubConnectionRef.current = null;
-      }
+
+      connection = createHubConnection();
+      hubConnectionRef.current = connection;
+
+      connection.on("NewOrderReceived", (newOrder) => {
+        setNotifications((prev) => [newOrder, ...prev]);
+        showStatusAlert(`🔔 New Order Received! Order Ref: ${newOrder.orderNumber}`);
+        setAdminOrders((prev) => {
+          if (prev.some((o) => o.id === newOrder.id || o.orderNumber === newOrder.orderNumber)) {
+            return prev;
+          }
+          return [newOrder, ...prev];
+        });
+      });
+
+      connection.on("OrderStatusUpdated", (update) => {
+        setAdminOrders((prev) =>
+          prev.map((o) =>
+            o.orderNumber === update.orderNumber
+              ? { ...o, orderStatus: update.status, paymentStatus: update.paymentStatus }
+              : o
+          )
+        );
+      });
+
+      connection.onreconnected((connectionId) => {
+        console.log("Admin SignalR Reconnected, re-joining Admins group:", connectionId);
+        connection.invoke("JoinAdminDashboard").catch((err) => {
+          console.error("Failed to rejoin Admins group on reconnect:", err);
+        });
+      });
+
+      connection
+        .start()
+        .then(() => {
+          if (isCancelled) {
+            connection.stop();
+            return;
+          }
+          console.log("Admin SignalR Connected");
+          return connection.invoke("JoinAdminDashboard");
+        })
+        .catch((err) => {
+          if (!isCancelled) {
+            console.error("Admin SignalR Connection Failed:", err);
+          }
+        });
     }
+
     return () => {
-      if (hubConnectionRef.current) hubConnectionRef.current.stop();
+      isCancelled = true;
+      if (connection) {
+        connection.stop().catch(() => {});
+        if (hubConnectionRef.current === connection) {
+          hubConnectionRef.current = null;
+        }
+      }
     };
   }, [adminToken]);
 
@@ -179,27 +230,7 @@ function AppContent() {
     }
   };
 
-  // ---- SignalR Admin Setup ----
-  const setupSignalRAdmin = () => {
-    if (hubConnectionRef.current) return;
 
-    const connection = createHubConnection();
-    hubConnectionRef.current = connection;
-
-    connection
-      .start()
-      .then(() => {
-        console.log("Admin SignalR Connected");
-        connection.invoke("JoinAdminDashboard");
-      })
-      .catch((err) => console.error("Admin SignalR Connection Failed:", err));
-
-    connection.on("NewOrderReceived", (newOrder) => {
-      setNotifications((prev) => [newOrder, ...prev]);
-      showStatusAlert(`🔔 New Order Received! Order Ref: ${newOrder.orderNumber}`);
-      setAdminOrders((prev) => [newOrder, ...prev]);
-    });
-  };
 
   // ---- Auth Handlers ----
   const handleAdminLogout = () => {

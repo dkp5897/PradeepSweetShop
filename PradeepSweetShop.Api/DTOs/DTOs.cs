@@ -1,5 +1,11 @@
 namespace PradeepSweetShop.Api.DTOs;
 
+// --- COMMON DTOs ---
+public class MessageResponseDto
+{
+    public required string Message { get; set; }
+}
+
 // --- AUTH DTOs ---
 public class AdminLoginRequest
 {
@@ -12,6 +18,14 @@ public class AdminLoginResponse
     public required string Token { get; set; }
     public required string Username { get; set; }
     public required string FullName { get; set; }
+}
+
+// --- CATEGORY DTOs ---
+public class DeleteCategoryResponseDto
+{
+    public required string Message { get; set; }
+    public bool Deactivated { get; set; }
+    public bool Deleted { get; set; }
 }
 
 // --- PRODUCT DTOs ---
@@ -46,6 +60,13 @@ public class ProductCreateUpdateRequest
     public string? ImageUrl { get; set; }
     public bool IsActive { get; set; } = true;
     public List<ProductPriceDto> Prices { get; set; } = [];
+}
+
+public class DeleteProductResponseDto
+{
+    public required string Message { get; set; }
+    public bool Deactivated { get; set; }
+    public bool Deleted { get; set; }
 }
 
 // --- REVIEW DTOs ---
@@ -132,3 +153,9 @@ public class OrderStatusUpdateRequest
     public required string Status { get; set; }
 }
 
+public class OrderStatusUpdateResponseDto
+{
+    public required string Message { get; set; }
+    public required string Status { get; set; }
+    public required string PaymentStatus { get; set; }
+}

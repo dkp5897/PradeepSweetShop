@@ -123,15 +123,10 @@ export const api = {
 
 // SignalR Service Helper
 export function createHubConnection() {
-  const token = localStorage.getItem("admin_token");
-
-  // We can pass JWT token in query string or headers
-  // For WebSockets, the browser does not allow setting headers, so passing via query string is standard
-  // Our ASP.NET Core backend is configured to read the JWT token from query string "access_token"
   return new signalR.HubConnectionBuilder()
     .withUrl(HUB_URL, {
-      accessTokenFactory: () => token || ""
+      accessTokenFactory: () => localStorage.getItem("admin_token") || ""
     })
-    .withAutomaticReconnect()
+    .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
     .build();
 }
