@@ -1,25 +1,55 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Grid,
   Box,
   Typography,
-  TextField,
   Button,
   Paper,
-  List,
-  ListItem,
-  ListItemText,
   Divider,
   Stack,
+  Chip,
+  IconButton,
+  Alert,
+  Collapse,
+  useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Info } from "@mui/icons-material";
+import {
+  ArrowBack,
+  ShoppingBag,
+  Restaurant,
+  Payments,
+  ExpandMore,
+  ExpandLess,
+  LocalShipping,
+  VerifiedUser,
+  CheckCircle,
+} from "@mui/icons-material";
 import { api } from "../api";
+import OrderItem from "../components/OrderItem";
+import DeliveryInformation from "../components/DeliveryInformation";
 
-export default function CheckoutPage({ cart, setCart, getCartTotal, setCurrentPage, setTrackedOrder }) {
+export default function CheckoutPage({
+  cart = [],
+  setCart,
+  getCartTotal,
+  setCurrentPage,
+  setTrackedOrder,
+  handleUpdateCartQty,
+}) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const isMobile = useMediaQuery("(max-width:600px)");
+  const [isCartExpanded, setIsCartExpanded] = useState(true);
+
+  useEffect(() => {
+    if (isMobile) {
+      setIsCartExpanded(false);
+    } else {
+      setIsCartExpanded(true);
+    }
+  }, [isMobile]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -29,33 +59,45 @@ export default function CheckoutPage({ cart, setCart, getCartTotal, setCurrentPa
     notes: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const totalItemCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+  const cartTotal = typeof getCartTotal === "function" ? getCartTotal() : 0;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errorMessage) setErrorMessage("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.phone || !formData.address) {
-      alert("Please fill in Name, Phone, and Delivery Address.");
+    setErrorMessage("");
+
+    if (cart.length === 0) {
+      setErrorMessage("Your cart is empty. Please add sweets before placing an order.");
+      return;
+    }
+
+    if (!formData.name.trim() || !formData.phone.trim() || !formData.address.trim()) {
+      setErrorMessage("Please fill in your Name, Phone Number, and Complete Delivery Address.");
       return;
     }
 
     const phoneRegex = /^[0-9+ ]{10,15}$/;
     if (!phoneRegex.test(formData.phone.trim())) {
-      alert("Please enter a valid phone number (10-15 digits).");
+      setErrorMessage("Please enter a valid 10-digit phone number.");
       return;
     }
 
     setIsSubmitting(true);
     try {
       const orderData = {
-        customerName: formData.name,
-        customerPhone: formData.phone,
-        customerEmail: formData.email || null,
-        deliveryAddress: formData.address,
-        orderNotes: formData.notes || null,
+        customerName: formData.name.trim(),
+        customerPhone: formData.phone.trim(),
+        customerEmail: formData.email ? formData.email.trim() : null,
+        deliveryAddress: formData.address.trim(),
+        orderNotes: formData.notes ? formData.notes.trim() : null,
         items: cart.map((item) => ({
           productId: item.productId,
           productPriceId: item.variantId,
@@ -64,206 +106,334 @@ export default function CheckoutPage({ cart, setCart, getCartTotal, setCurrentPa
       };
 
       const response = await api.placeOrder(orderData);
-      setCart([]);
-      setTrackedOrder(response);
-      setCurrentPage("track");
+      if (typeof setCart === "function") {
+        setCart([]);
+      }
+      if (typeof setTrackedOrder === "function") {
+        setTrackedOrder(response);
+      }
+      if (typeof setCurrentPage === "function") {
+        setCurrentPage("track");
+      }
     } catch (err) {
-      alert(err.message || "Failed to place order. Please check availability or try again.");
+      setErrorMessage(err.message || "Failed to place order. Please check availability or try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // If cart is empty, show clean empty state
+  if (cart.length === 0) {
+    return (
+      <Container maxWidth="md" sx={{ py: 6 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 4, sm: 6 },
+            textAlign: "center",
+            borderRadius: 4,
+            border: `1px solid ${theme.palette.divider}`,
+            bgcolor: isDark ? "#13151e" : "#fff",
+          }}
+        >
+          <Box
+            sx={{
+              width: 80,
+              height: 80,
+              borderRadius: "50%",
+              bgcolor: isDark ? "rgba(180,83,9,0.15)" : "primary.light",
+              color: "primary.main",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mx: "auto",
+              mb: 3,
+            }}
+          >
+            <ShoppingBag sx={{ fontSize: 40 }} />
+          </Box>
+          <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: "text.primary" }}>
+            Your Cart is Empty
+          </Typography>
+          <Typography variant="body1" sx={{ color: "text.secondary", maxWidth: 450, mx: "auto", mb: 4 }}>
+            You haven't selected any sweets for delivery yet. Explore our handcrafted, pure desi ghee sweets and add them to your cart!
+          </Typography>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => setCurrentPage("shop")}
+            startIcon={<Restaurant />}
+            sx={{
+              px: 4,
+              py: 1.5,
+              borderRadius: 3,
+              fontWeight: 700,
+              background: "linear-gradient(135deg, #b45309, #f59e0b)",
+              "&:hover": { background: "linear-gradient(135deg, #92400e, #d97706)" },
+            }}
+          >
+            Browse Sweets Menu
+          </Button>
+        </Paper>
+      </Container>
+    );
+  }
+
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth="lg" sx={{ py: 2 }}>
+      {/* Top Navigation & Breadcrumbs */}
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+        <Button
+          startIcon={<ArrowBack />}
+          onClick={() => setCurrentPage("shop")}
+          sx={{
+            color: "text.secondary",
+            textTransform: "none",
+            fontWeight: 600,
+            "&:hover": { color: "primary.main", bgcolor: "transparent" },
+          }}
+        >
+          Back to Sweets Menu
+        </Button>
+      </Stack>
+
+      {/* Page Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5, color: "text.primary" }}>
-          Checkout Delivery Details
-        </Typography>
-        <Typography variant="body1" sx={{ color: "text.secondary" }}>
-          We will deliver fresh sweets straight from our shop. Cash on Delivery only.
-        </Typography>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={1}>
+          <Box>
+            <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5, color: "text.primary" }}>
+              Checkout & Delivery Details
+            </Typography>
+            <Typography variant="body1" sx={{ color: "text.secondary" }}>
+              Review the sweets you are ordering and provide your delivery address for doorstep delivery.
+            </Typography>
+          </Box>
+          <Chip
+            icon={<Payments sx={{ fontSize: "18px !important" }} />}
+            label="Cash on Delivery Only"
+            color="primary"
+            variant="outlined"
+            sx={{ fontWeight: 700, px: 1 }}
+          />
+        </Stack>
       </Box>
 
-      <Grid container spacing={4}>
-        {/* Delivery Form */}
-        <Grid item xs={12} md={7}>
+      {errorMessage && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setErrorMessage("")}>
+          {errorMessage}
+        </Alert>
+      )}
+
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          gap: 3.5,
+          alignItems: "stretch",
+          width: "100%",
+        }}
+      >
+        {/* LEFT COLUMN: Selected Sweets (50% Width / Same Row on Laptop & iPad) */}
+        <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
           <Paper
             elevation={0}
             sx={{
-              p: 4,
-              borderRadius: 4,
+              p: { xs: 2.5, sm: 3 },
+              borderRadius: 3.5,
               border: `1px solid ${theme.palette.divider}`,
               bgcolor: isDark ? "#13151e" : "#fff",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            <Typography
-              variant="h5"
-              sx={{ fontWeight: 800, mb: 4, pb: 1, borderBottom: `1px solid ${theme.palette.divider}`, color: "text.primary" }}
+            {/* Header (Clickable Collapse Toggle on Mobile) */}
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              onClick={() => isMobile && setIsCartExpanded((prev) => !prev)}
+              sx={{
+                width: "100%",
+                mb: isCartExpanded ? 1.5 : 0,
+                cursor: isMobile ? "pointer" : "default",
+                userSelect: "none",
+              }}
             >
-              Delivery Information
-            </Typography>
-
-            <Box
-              component="form"
-              onSubmit={handleSubmit}
-              sx={{ display: "flex", flexDirection: "column", gap: 3 }}
-            >
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Customer Full Name *"
-                    name="name"
-                    required
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Rajesh Kumar"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Phone Number *"
-                    name="phone"
-                    required
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="9876543210"
-                  />
-                </Grid>
-              </Grid>
-
-              <TextField
-                fullWidth
-                label="Email Address (Optional)"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="rajesh@gmail.com"
-              />
-
-              <TextField
-                fullWidth
-                label="Complete Delivery Address *"
-                name="address"
-                required
-                multiline
-                rows={3}
-                value={formData.address}
-                onChange={handleInputChange}
-                placeholder="House No, Street, Colony, City Landmark, Pin Code"
-              />
-
-              <TextField
-                fullWidth
-                label="Order Notes / Custom Requests"
-                name="notes"
-                multiline
-                rows={2}
-                value={formData.notes}
-                onChange={handleInputChange}
-                placeholder="Add extra dry fruits, deliver before 6 PM etc."
-              />
-
-              <Button
-                variant="contained"
-                type="submit"
-                size="large"
-                fullWidth
-                disabled={isSubmitting}
-                sx={{
-                  py: 1.5, mt: 2, borderRadius: 2, fontWeight: 700,
-                  background: "linear-gradient(135deg, #b45309, #f59e0b)",
-                  "&:hover": { background: "linear-gradient(135deg, #92400e, #d97706)" },
-                }}
-              >
-                {isSubmitting ? "Placing Order..." : `Confirm & Place Order (₹${getCartTotal()})`}
-              </Button>
-            </Box>
-          </Paper>
-        </Grid>
-
-        {/* Order Summary */}
-        <Grid item xs={12} md={5}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 4,
-              height: "fit-content",
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: isDark ? "#13151e" : "#fff",
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 800, mb: 3, color: "text.primary" }}>
-              Order Summary
-            </Typography>
-
-            <List disablePadding>
-              {cart.map((item) => (
-                <ListItem
-                  key={`${item.productId}-${item.variantId}`}
-                  disableGutters
-                  sx={{ py: 1.5, justifyContent: "space-between" }}
-                >
-                  <ListItemText
-                    primary={item.productName}
-                    primaryTypographyProps={{ fontWeight: 700, variant: "subtitle2", color: "text.primary" }}
-                    secondary={`${item.quantity} x ${item.unit}`}
-                  />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "text.primary" }}>
-                    ₹{item.price * item.quantity}
+              <Box>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography variant="h6" sx={{ fontWeight: 800, color: "text.primary" }}>
+                    Selected Sweets
                   </Typography>
-                </ListItem>
-              ))}
-            </List>
+                  {isMobile && !isCartExpanded && (
+                    <Typography variant="subtitle2" sx={{ color: "primary.main", fontWeight: 800 }}>
+                      (₹{cartTotal})
+                    </Typography>
+                  )}
+                </Stack>
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  {isMobile && !isCartExpanded
+                    ? "Tap to view items & pricing summary"
+                    : "Products you are going to order"}
+                </Typography>
+              </Box>
 
-            <Divider sx={{ my: 2, borderColor: theme.palette.divider }} />
-
-            <Stack spacing={1.5}>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                  Delivery Fee
-                </Typography>
-                <Typography variant="body2" sx={{ color: "success.main", fontWeight: 700 }}>
-                  FREE
-                </Typography>
-              </Stack>
-              <Divider sx={{ borderStyle: "dashed", borderColor: theme.palette.divider }} />
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "text.primary" }}>
-                  Grand Total
-                </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 900, color: "primary.main" }}>
-                  ₹{getCartTotal()}
-                </Typography>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: "auto" }}>
+                <Chip
+                  label={`${totalItemCount} ${totalItemCount === 1 ? "item" : "items"}`}
+                  size="small"
+                  sx={{
+                    fontWeight: 700,
+                    bgcolor: isDark ? "rgba(180,83,9,0.2)" : "primary.light",
+                    color: "primary.main",
+                  }}
+                />
+                {isMobile && (
+                  <IconButton size="small" sx={{ color: "primary.main", p: 0.5 }}>
+                    {isCartExpanded ? <ExpandLess /> : <ExpandMore />}
+                  </IconButton>
+                )}
               </Stack>
             </Stack>
 
-            <Box
-              sx={{
-                mt: 4, p: 2,
-                bgcolor: isDark ? "rgba(180,83,9,0.1)" : "primary.light",
-                borderRadius: 2,
-                border: `1px solid ${isDark ? "rgba(180,83,9,0.2)" : "#fde68a"}`,
-              }}
-            >
-              <Stack direction="row" spacing={1} alignItems="flex-start">
-                <Info color="primary" sx={{ mt: 0.25 }} />
-                <Typography
-                  variant="caption"
-                  sx={{ color: isDark ? "#fbbf24" : "primary.dark", fontWeight: 600, lineHeight: 1.4 }}
+            {/* Collapsible Content Body */}
+            <Collapse in={isCartExpanded} timeout="auto" sx={{ width: "100%", flexGrow: 1, display: "flex", flexDirection: "column" }}>
+              <Box sx={{ width: "100%", display: "flex", flexDirection: "column", flexGrow: 1, gap: 1.25 }}>
+                <Divider sx={{ mb: 0.5, borderColor: theme.palette.divider }} />
+
+                {/* Scrollable List of Ordered Products (Compact MaxHeight 220) */}
+                <Box
+                  sx={{
+                    maxHeight: 220,
+                    overflowY: "auto",
+                    pr: 0.5,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.75,
+                    "&::-webkit-scrollbar": { width: 5 },
+                    "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+                    "&::-webkit-scrollbar-thumb": {
+                      bgcolor: isDark ? "rgba(255,255,255,0.15)" : "#cbd5e1",
+                      borderRadius: 3,
+                    },
+                    "&::-webkit-scrollbar-thumb:hover": {
+                      bgcolor: isDark ? "rgba(255,255,255,0.25)" : "#94a3b8",
+                    },
+                  }}
                 >
-                  <strong>Cash on Delivery (COD) Only</strong>. Payments will be collected in-person
-                  upon sweet delivery. Order status updates in real-time.
-                </Typography>
-              </Stack>
-            </Box>
+                  {cart.map((item, idx) => (
+                    <React.Fragment key={`${item.productId}-${item.variantId}`}>
+                      {idx > 0 && <Divider sx={{ my: 0.5, borderColor: theme.palette.divider }} />}
+                      <OrderItem
+                        item={item}
+                        handleUpdateCartQty={handleUpdateCartQty}
+                      />
+                    </React.Fragment>
+                  ))}
+                </Box>
+
+                <Divider sx={{ my: 0.5, borderColor: theme.palette.divider }} />
+
+                {/* Bill Pricing Breakdown */}
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: "auto", pt: 0.5, width: "100%" }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.85rem" }}>
+                      Items Total ({totalItemCount} {totalItemCount === 1 ? "item" : "items"})
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: "text.primary", textAlign: "right" }}>
+                      ₹{cartTotal}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.85rem" }}>
+                      Sweets Gift Packaging
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "success.main", fontWeight: 700, textAlign: "right", fontSize: "0.85rem" }}>
+                      FREE
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.85rem" }}>
+                      Doorstep Delivery
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "success.main", fontWeight: 700, textAlign: "right", fontSize: "0.85rem" }}>
+                      FREE
+                    </Typography>
+                  </Box>
+
+                  <Divider sx={{ borderStyle: "dashed", borderColor: theme.palette.divider, my: 0.25 }} />
+
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "text.primary" }}>
+                        Total Payable
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                        Includes all taxes
+                      </Typography>
+                    </Box>
+                    <Typography variant="h6" sx={{ fontWeight: 900, color: "primary.main", textAlign: "right" }}>
+                      ₹{cartTotal}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Assurances Bar */}
+                <Box
+                  sx={{
+                    p: 1.25,
+                    mt: 1,
+                    borderRadius: 2,
+                    bgcolor: isDark ? "rgba(255,255,255,0.02)" : "#f8fafc",
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  <Grid container spacing={1}>
+                    <Grid item xs={12} sm={4}>
+                      <Stack direction="row" spacing={0.75} alignItems="center">
+                        <LocalShipping sx={{ color: "primary.main", fontSize: 18 }} />
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: "text.primary" }}>
+                          Fresh Local Delivery
+                        </Typography>
+                      </Stack>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <Stack direction="row" spacing={0.75} alignItems="center">
+                        <VerifiedUser sx={{ color: "success.main", fontSize: 18 }} />
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: "text.primary" }}>
+                          100% Pure Sweets
+                        </Typography>
+                      </Stack>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <Stack direction="row" spacing={0.75} alignItems="center">
+                        <CheckCircle sx={{ color: "warning.main", fontSize: 18 }} />
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: "text.primary" }}>
+                          Pay on Delivery
+                        </Typography>
+                      </Stack>
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Box>
+            </Collapse>
           </Paper>
-        </Grid>
-      </Grid>
+        </Box>
+
+        {/* RIGHT COLUMN: Delivery Details Form (50% Width / Same Row on Laptop & iPad) */}
+        <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <DeliveryInformation
+            formData={formData}
+            handleInputChange={handleInputChange}
+            handleSubmit={handleSubmit}
+            isSubmitting={isSubmitting}
+            cartTotal={cartTotal}
+            cartLength={cart.length}
+          />
+        </Box>
+      </Box>
     </Container>
   );
 }

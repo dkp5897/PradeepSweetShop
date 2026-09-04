@@ -2,8 +2,6 @@ import React from "react";
 import {
   Box,
   Container,
-  Grid,
-  Stack,
   Typography,
   Divider,
   useTheme,
@@ -16,43 +14,52 @@ export default function Footer({ setCurrentPage }) {
 
   return (
     <Box
+      component="footer"
       sx={{
         bgcolor: isDark ? "#0a0c14" : "#0f172a",
         color: "grey.400",
-        pt: 8,
-        pb: 4,
+        pt: 3.5,
+        pb: 2.25,
         borderTop: "3px solid #b45309",
-        mt: 10,
+        mt: 4,
       }}
     >
       <Container maxWidth="lg">
-        <Grid container spacing={4} sx={{ mb: 6 }}>
-
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, 1fr)",
+              md: "1.3fr 0.8fr 1.1fr 1.2fr",
+            },
+            gap: { xs: 2.5, sm: 3, md: 4 },
+            alignItems: "start",
+            mb: 2.5,
+          }}
+        >
           {/* Brand */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Stack spacing={2}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Store sx={{ color: "primary.main", fontSize: 28 }} />
-                <Typography variant="h6" sx={{ color: "#fff", fontWeight: 800 }}>
-                  Pradeep Sweets
-                </Typography>
-              </Box>
-              <Typography variant="caption" sx={{ lineHeight: 1.6, display: "block" }}>
-                Delivering authentic taste, rich flavor, and absolute hygienic sweets across town since
-                1995.
+          <Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+              <Store sx={{ color: "primary.main", fontSize: 22 }} />
+              <Typography variant="h6" sx={{ color: "#fff", fontWeight: 800, fontSize: "1.05rem" }}>
+                Pradeep Sweets
               </Typography>
-            </Stack>
-          </Grid>
+            </Box>
+            <Typography variant="body2" sx={{ lineHeight: 1.5, color: "grey.400", fontSize: 13, maxWidth: 300 }}>
+              Delivering authentic taste, rich flavor, and absolute hygienic sweets across town since 1995.
+            </Typography>
+          </Box>
 
           {/* Quick Links */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Box>
             <Typography
               variant="subtitle2"
-              sx={{ color: "primary.main", fontWeight: 800, mb: 2, textTransform: "uppercase", letterSpacing: 1, fontSize: 11 }}
+              sx={{ color: "primary.main", fontWeight: 800, mb: 1, textTransform: "uppercase", letterSpacing: 0.8, fontSize: 11 }}
             >
               Quick Links
             </Typography>
-            <Stack spacing={1} sx={{ fontSize: 13 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
               {[
                 { label: "Home", page: "home" },
                 { label: "Menu Shop", page: "shop" },
@@ -61,61 +68,70 @@ export default function Footer({ setCurrentPage }) {
               ].map((link) => (
                 <Typography
                   key={link.page}
+                  variant="body2"
                   onClick={() => setCurrentPage(link.page)}
                   sx={{
                     cursor: "pointer",
+                    fontSize: 13,
+                    color: "grey.400",
                     transition: "color 0.2s ease",
                     "&:hover": { color: "#fff" },
+                    width: "fit-content",
                   }}
                 >
                   {link.label}
                 </Typography>
               ))}
-            </Stack>
-          </Grid>
+            </Box>
+          </Box>
 
           {/* Working Hours */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Box>
             <Typography
               variant="subtitle2"
-              sx={{ color: "primary.main", fontWeight: 800, mb: 2, textTransform: "uppercase", letterSpacing: 1, fontSize: 11 }}
+              sx={{ color: "primary.main", fontWeight: 800, mb: 1, textTransform: "uppercase", letterSpacing: 0.8, fontSize: 11 }}
             >
               Working Hours
             </Typography>
-            <Stack spacing={1} sx={{ fontSize: 13 }}>
-              <Typography>Monday - Saturday: 8:00 AM - 10:00 PM</Typography>
-              <Typography>Sunday Specials: 7:00 AM - 10:00 PM</Typography>
-              <Typography sx={{ color: "primary.main" }}>Fresh batches delivered daily.</Typography>
-            </Stack>
-          </Grid>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+              <Typography variant="body2" sx={{ fontSize: 13, color: "grey.400" }}>
+                Mon - Sat: 8:00 AM - 10:00 PM
+              </Typography>
+              <Typography variant="body2" sx={{ fontSize: 13, color: "grey.400" }}>
+                Sunday: 7:00 AM - 10:00 PM
+              </Typography>
+              <Typography variant="body2" sx={{ color: "primary.main", fontWeight: 600, fontSize: 12 }}>
+                Fresh batches delivered daily.
+              </Typography>
+            </Box>
+          </Box>
 
           {/* Contact */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Box>
             <Typography
               variant="subtitle2"
-              sx={{ color: "primary.main", fontWeight: 800, mb: 2, textTransform: "uppercase", letterSpacing: 1, fontSize: 11 }}
+              sx={{ color: "primary.main", fontWeight: 800, mb: 1, textTransform: "uppercase", letterSpacing: 0.8, fontSize: 11 }}
             >
               Get in Touch
             </Typography>
-            <Stack spacing={1} sx={{ fontSize: 13 }}>
-              <Typography sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Phone fontSize="inherit" /> +91 98765 43210
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+              <Typography variant="body2" sx={{ display: "flex", alignItems: "center", gap: 0.75, fontSize: 13, color: "grey.400" }}>
+                <Phone sx={{ fontSize: 15 }} /> +91 98765 43210
               </Typography>
-              <Typography sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Mail fontSize="inherit" /> contact@pradeepsweets.com
+              <Typography variant="body2" sx={{ display: "flex", alignItems: "center", gap: 0.75, fontSize: 13, color: "grey.400" }}>
+                <Mail sx={{ fontSize: 15 }} /> contact@pradeepsweets.com
               </Typography>
-              <Typography sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Place fontSize="inherit" /> Main Bazar Road, Delhi, IN
+              <Typography variant="body2" sx={{ display: "flex", alignItems: "center", gap: 0.75, fontSize: 13, color: "grey.400" }}>
+                <Place sx={{ fontSize: 15 }} /> Main Bazar Road, Delhi, IN
               </Typography>
-            </Stack>
-          </Grid>
+            </Box>
+          </Box>
+        </Box>
 
-        </Grid>
-
-        <Divider sx={{ borderColor: "rgba(255,255,255,0.06)", mb: 3 }} />
+        <Divider sx={{ borderColor: "rgba(255,255,255,0.08)", mb: 1.75 }} />
         <Typography
           variant="caption"
-          sx={{ display: "block", textAlign: "center", color: "grey.600" }}
+          sx={{ display: "block", textAlign: "center", color: "grey.600", fontSize: 11.5 }}
         >
           © {new Date().getFullYear()} Pradeep Sweets House. All rights reserved.
         </Typography>
