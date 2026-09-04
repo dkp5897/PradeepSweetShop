@@ -368,6 +368,7 @@ function AppContent() {
               getCartTotal={getCartTotal}
               setCurrentPage={setCurrentPage}
               setTrackedOrder={setTrackedOrder}
+              handleUpdateCartQty={handleUpdateCartQty}
             />
           )}
 
