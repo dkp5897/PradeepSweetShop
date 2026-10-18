@@ -87,6 +87,8 @@ PradeepSweetShop/
 
 ---
 
+See [DEPLOYMENT.md](DEPLOYMENT.md) for current setup, security configuration, database upgrade, and verification instructions.
+
 ### 1. Backend Setup (API)
 
 1. Navigate to the API folder:
@@ -101,16 +103,16 @@ PradeepSweetShop/
    }
    ```
 
-3. Apply Database Migrations and seed default data:
+3. For a new development database, configure a bootstrap password (12+ characters), then start the API. Existing development databases are upgraded additively:
    ```bash
-   dotnet ef database update
+   dotnet run --launch-profile https
    ```
 
 4. Run the backend API:
    ```bash
    dotnet run
    ```
-   *The API will start at `https://localhost:7084` or `http://localhost:5222`.*
+   *The API will start at `https://localhost:7185` or `http://localhost:5049`.*
 
 ---
 
@@ -132,20 +134,15 @@ PradeepSweetShop/
    ```bash
    yarn start
    # or
-   npm run dev
+   npm start
    ```
    *The React app will launch at `http://localhost:5173`.*
 
 ---
 
-## 🔑 Default Admin Credentials
+## Admin access
 
-Upon initial database migration & seeding, a default administrator account is created:
-
-- **Username**: `admin`
-- **Password**: `adminpassword123`
-
----
+Existing development credentials are preserved. New development databases require `Bootstrap__AdminPassword` (12+ characters). Sign in and use **Change password** before production deployment. There is no default password for new installations.
 
 ## 🔌 API Endpoints Summary
 
@@ -154,14 +151,14 @@ Upon initial database migration & seeding, a default administrator account is cr
 | `GET` | `/api/categories` | Get active sweet categories | Public |
 | `GET` | `/api/products` | Get sweets catalog with category & search filter | Public |
 | `POST` | `/api/orders` | Place a customer order (COD) | Public |
-| `GET` | `/api/orders/track/{orderNumber}` | Track order status by order reference | Public |
-| `POST` | `/api/reviews` | Submit product review & star rating | Public |
-| `POST` | `/api/adminauth/login` | Authenticate admin user & receive JWT | Public |
+| `GET` | `/api/orders/track/{orderNumber}` | Track with order reference and private X-Tracking-Token header | Public |
+| `POST` | `/api/products/{id}/reviews` | Submit for approval product review & star rating | Public |
+| `POST` | `/api/auth/login` | Authenticate admin user & receive JWT | Public |
 | `GET` | `/api/products/admin` | Get all sweets catalog for administration | Admin |
 | `POST` | `/api/products` | Create a new sweet product with pricing units | Admin |
 | `PUT` | `/api/products/{id}` | Update product & unit pricing variants | Admin |
 | `DELETE` | `/api/products/{id}` | Delete sweet product | Admin |
-| `GET` | `/api/orders/admin` | Get all orders with status filter | Admin |
+| `GET` | `/api/orders` | Get all orders with status filter | Admin |
 | `PUT` | `/api/orders/{id}/status` | Update order status state | Admin |
 | `DELETE` | `/api/reviews/{id}` | Moderation delete customer review | Admin |
 

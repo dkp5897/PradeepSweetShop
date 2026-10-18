@@ -1,4 +1,3 @@
-import React, { useEffect } from "react";
 import {
   Box,
   Typography,
@@ -23,12 +22,14 @@ import {
   Store,
   Home,
 } from "@mui/icons-material";
-import { useThemeMode } from "../../context/ThemeContext";
+import { useThemeMode } from "../../context/themeMode";
 import AdminDashboardTab from "./AdminDashboardTab";
 import AdminOrdersTab from "./AdminOrdersTab";
 import AdminProductsTab from "./AdminProductsTab";
 import AdminCategoriesTab from "./AdminCategoriesTab";
 import AdminReviewsTab from "./AdminReviewsTab";
+import AdminPasswordDialog from "./AdminPasswordDialog";
+import { useState } from "react";
 
 const SIDEBAR_WIDTH = 260;
 
@@ -54,35 +55,37 @@ export default function AdminPortal({
   orderFilter,
   setOrderFilter,
   setCurrentPage,
+  orderPage,
+  setOrderPage,
+  orderTotal,
+  orderSummary,
+  onNotice,
 }) {
   const theme = useTheme();
   const { mode, toggleTheme } = useThemeMode();
   const isDark = mode === "dark";
-  const pendingCount = adminOrders.filter((o) => o.orderStatus === "Pending").length;
-
-  useEffect(() => {
-    fetchAdminData();
-  }, [adminActiveTab]);
+  const pendingCount = orderSummary.pending;
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const initials = adminUser?.fullName
     ? adminUser.fullName.split(" ").map((n) => n[0]).join("").toUpperCase()
     : "A";
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, minHeight: "100vh", bgcolor: "background.default" }}>
 
       {/* ─── SIDEBAR ─── */}
       <Box
         sx={{
-          width: SIDEBAR_WIDTH,
+          width: { xs: "100%", md: SIDEBAR_WIDTH },
           flexShrink: 0,
           bgcolor: isDark ? "#13151e" : "#fff",
           borderRight: `1px solid ${theme.palette.divider}`,
           display: "flex",
           flexDirection: "column",
-          position: "sticky",
+          position: { xs: "relative", md: "sticky" },
           top: 0,
-          height: "100vh",
+          height: { xs: "auto", md: "100vh" },
           overflowY: "auto",
         }}
       >
@@ -137,16 +140,21 @@ export default function AdminPortal({
             Navigation
           </Typography>
 
-          <Stack spacing={0.5}>
+          <Stack spacing={0.5} direction={{ xs: "row", md: "column" }} sx={{ overflowX: "auto" }}>
             {NAV_ITEMS.map((item) => {
               const isActive = adminActiveTab === item.value;
               const Icon = item.icon;
               return (
                 <Box
+                  component="button"
                   key={item.value}
                   onClick={() => setAdminActiveTab(item.value)}
                   sx={{
                     display: "flex",
+                    border: 0,
+                    font: "inherit",
+                    textAlign: "left",
+                    flexShrink: 0,
                     alignItems: "center",
                     gap: 1.5,
                     px: 1.5,
@@ -225,7 +233,7 @@ export default function AdminPortal({
             </Typography>
           </Box>
           <Tooltip title="Logout">
-            <IconButton size="small" onClick={handleAdminLogout} sx={{ color: "error.main" }}>
+            <IconButton aria-label="Log out" size="small" onClick={handleAdminLogout} sx={{ color: "error.main" }}>
               <ExitToApp fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -238,11 +246,13 @@ export default function AdminPortal({
         {/* Top Bar */}
         <Box
           sx={{
-            px: 4,
+            px: { xs: 2, md: 4 },
             py: 2,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 2,
             borderBottom: `1px solid ${theme.palette.divider}`,
             bgcolor: isDark ? "rgba(19,21,30,0.6)" : "rgba(255,255,255,0.6)",
             backdropFilter: "blur(10px)",
@@ -260,9 +270,10 @@ export default function AdminPortal({
             </Typography>
           </Box>
 
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <Button size="small" onClick={() => setPasswordOpen(true)}>Change password</Button>
             <Tooltip title="Go to Store">
-              <IconButton onClick={() => setCurrentPage("home")} sx={{ color: "text.secondary" }}>
+              <IconButton aria-label="Go to store" onClick={() => setCurrentPage("home")} sx={{ color: "text.secondary" }}>
                 <Home />
               </IconButton>
             </Tooltip>
@@ -298,11 +309,10 @@ export default function AdminPortal({
         </Box>
 
         {/* Page Content */}
-        <Box sx={{ p: 4, flex: 1 }}>
+        <Box sx={{ p: { xs: 2, md: 4 }, flex: 1 }}>
           {adminActiveTab === "dashboard" && (
             <AdminDashboardTab
-              adminOrders={adminOrders}
-              adminProducts={adminProducts}
+              orderSummary={orderSummary}
               notifications={notifications}
               setNotifications={setNotifications}
               setAdminActiveTab={setAdminActiveTab}
@@ -314,6 +324,9 @@ export default function AdminPortal({
               fetchAdminData={fetchAdminData}
               orderFilter={orderFilter}
               setOrderFilter={setOrderFilter}
+              orderPage={orderPage}
+              setOrderPage={setOrderPage}
+              orderTotal={orderTotal}
             />
           )}
           {adminActiveTab === "products" && (
@@ -334,6 +347,7 @@ export default function AdminPortal({
           )}
         </Box>
       </Box>
+      {passwordOpen && <AdminPasswordDialog open onClose={() => setPasswordOpen(false)} onChanged={() => { handleAdminLogout(); onNotice("Admin password changed. Sign in again with your new password."); }} />}
     </Box>
   );
 }

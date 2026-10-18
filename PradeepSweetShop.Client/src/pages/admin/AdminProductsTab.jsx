@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Paper,
   Box,
@@ -68,7 +68,7 @@ export default function AdminProductsTab({ adminProducts, adminCategories, fetch
     setFormData({
       name: prod.name, description: prod.description || "",
       categoryId: prod.categoryId.toString(), imageUrl: prod.imageUrl || "",
-      isActive: prod.isActive, prices: [...prod.prices],
+      isActive: prod.isActive, prices: prod.prices.map(price => ({ ...price, originalStockQuantity: price.stockQuantity })),
     });
     setIsModalOpen(true);
   };
@@ -149,7 +149,7 @@ export default function AdminProductsTab({ adminProducts, adminCategories, fetch
   return (
     <Box>
       {/* Header */}
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 13 }}>
           Configure pricing variants in grams, kilograms, or piece count.
         </Typography>
@@ -174,7 +174,7 @@ export default function AdminProductsTab({ adminProducts, adminCategories, fetch
       {/* Products Grid */}
       <Grid container spacing={2.5}>
         {adminProducts.map((prod) => (
-          <Grid item xs={12} sm={6} md={4} key={prod.id}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={prod.id}>
             <Paper
               elevation={0}
               sx={{
@@ -222,7 +222,7 @@ export default function AdminProductsTab({ adminProducts, adminCategories, fetch
                 <Typography sx={{ fontWeight: 700, fontSize: 15, color: "text.primary", mb: 1, lineHeight: 1.3 }} noWrap>
                   {prod.name}
                 </Typography>
-                <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ gap: 0.5, mb: 1.5 }}>
+                <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", gap: 0.5, mb: 1.5 }}>
                   {prod.prices.map((pr) => (
                     <Chip
                       key={pr.id}
@@ -268,11 +268,11 @@ export default function AdminProductsTab({ adminProducts, adminCategories, fetch
           <Box component="form" onSubmit={handleSubmit}>
             <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }} >
                   <TextField fullWidth label="Sweet Name *" required size="small" value={formData.name}
                     onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))} />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }} >
                   <FormControl fullWidth size="small">
                     <InputLabel id="dialog-cat-label">Category *</InputLabel>
                     <Select labelId="dialog-cat-label" value={formData.categoryId} label="Category *"
@@ -300,8 +300,8 @@ export default function AdminProductsTab({ adminProducts, adminCategories, fetch
                   Pricing Units {editingVariantIndex !== null && "(Editing Selected Unit)"}
                 </Typography>
 
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems="flex-end"
-                  sx={{
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}
+                  sx={{ alignItems: "flex-end",
                     p: 2, borderRadius: 2, mb: 2, transition: "all 0.2s ease",
                     bgcolor: editingVariantIndex !== null ? (isDark ? "rgba(180,83,9,0.15)" : "#fef3c7") : (isDark ? "rgba(255,255,255,0.03)" : "#f8fafc"),
                     border: editingVariantIndex !== null ? "1px solid #f59e0b" : `1px solid ${theme.palette.divider}`,
@@ -352,7 +352,7 @@ export default function AdminProductsTab({ adminProducts, adminCategories, fetch
                             <TableCell sx={{ fontSize: 13 }}>₹{pr.price}</TableCell>
                             <TableCell sx={{ fontSize: 13 }}>{pr.stockQuantity}</TableCell>
                             <TableCell align="center">
-                              <Stack direction="row" spacing={0.5} justifyContent="center">
+                              <Stack direction="row" spacing={0.5} sx={{ justifyContent: "center" }}>
                                 <IconButton size="small" color="primary" onClick={() => startEditVariant(idx)}>
                                   <Edit fontSize="small" />
                                 </IconButton>

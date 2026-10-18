@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -16,6 +16,7 @@ import {
   Alert,
   IconButton,
   useTheme,
+  Pagination,
 } from "@mui/material";
 import { Close, Star, RateReview, Person } from "@mui/icons-material";
 import { api } from "../api";
@@ -35,26 +36,18 @@ export default function ProductReviewModal({ open, onClose, product, onReviewSub
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    if (open && product?.id) {
-      loadReviews();
-      setSuccessMsg("");
-      setError("");
-    }
-  }, [open, product?.id]);
-
-  const loadReviews = async () => {
-    try {
-      setLoading(true);
-      const data = await api.getProductReviews(product.id);
-      setReviews(data || []);
-    } catch (err) {
-      console.error("Failed to load reviews:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (!open || !product?.id) return;
+    let disposed = false;
+    api.getProductReviews(product.id, page).then(data => {
+      if (!disposed) { setReviews(data.items); setTotal(data.total); setSuccessMsg(""); setError(""); }
+    }).catch(error => { if (!disposed) setError(error.message); })
+      .finally(() => { if (!disposed) setLoading(false); });
+    return () => { disposed = true; };
+  }, [open, product?.id, page]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,15 +63,14 @@ export default function ProductReviewModal({ open, onClose, product, onReviewSub
     try {
       setSubmitting(true);
       setError("");
-      const newReview = await api.submitReview(product.id, {
+      await api.submitReview(product.id, {
         customerName,
-        customerEmail,
+        customerEmail: customerEmail.trim() || null,
         rating,
         comment,
       });
 
-      setSuccessMsg("Thank you! Your review has been submitted successfully.");
-      setReviews((prev) => [newReview, ...prev]);
+      setSuccessMsg("Thank you! Your review will appear after the shop approves it.");
       
       // Reset form
       setCustomerName("");
@@ -105,7 +97,7 @@ export default function ProductReviewModal({ open, onClose, product, onReviewSub
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{
+      slotProps={{ paper: {
         sx: {
           borderRadius: 3,
           bgcolor: isDark ? "#13151c" : "#fff",
@@ -113,7 +105,7 @@ export default function ProductReviewModal({ open, onClose, product, onReviewSub
           border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#e2e8f0"}`,
           boxShadow: isDark ? "0 20px 50px rgba(0,0,0,0.6)" : "0 10px 40px rgba(0,0,0,0.12)",
         },
-      }}
+      } }}
     >
       {/* Header */}
       <DialogTitle
@@ -268,7 +260,7 @@ export default function ProductReviewModal({ open, onClose, product, onReviewSub
 
         {/* Existing Reviews Section */}
         <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
-          💬 Customer Reviews ({reviews.length})
+          💬 Customer Reviews ({total})
         </Typography>
 
         {loading ? (
@@ -317,6 +309,7 @@ export default function ProductReviewModal({ open, onClose, product, onReviewSub
             ))}
           </Stack>
         )}
+        {total > 10 && <Pagination page={page} count={Math.ceil(total / 10)} onChange={(_, value) => { setLoading(true); setPage(value); }} />}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 2, borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#f1f5f9"}` }}>

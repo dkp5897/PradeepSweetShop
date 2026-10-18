@@ -1,21 +1,17 @@
-import React, { createContext, useContext, useState, useMemo } from "react";
-
-const ThemeContext = createContext();
-
-export function useThemeMode() {
-  return useContext(ThemeContext);
-}
+import { useState, useMemo } from "react";
+import { ThemeContext } from "./themeMode";
+import { readStored, writeStored } from "../storage";
 
 export function ThemeModeProvider({ children }) {
   const [mode, setMode] = useState(() => {
-    const saved = localStorage.getItem("theme_mode");
+    const saved = readStored("theme_mode", "light");
     return saved === "dark" ? "dark" : "light";
   });
 
   const toggleTheme = () => {
     setMode((prev) => {
       const next = prev === "light" ? "dark" : "light";
-      localStorage.setItem("theme_mode", next);
+      writeStored("theme_mode", next);
       return next;
     });
   };

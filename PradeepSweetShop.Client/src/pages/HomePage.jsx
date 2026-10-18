@@ -1,4 +1,4 @@
-import React from "react";
+
 import {
   Box,
   Container,
@@ -11,6 +11,7 @@ import {
   Avatar,
   Paper,
   Chip,
+  CircularProgress,
   useTheme,
 } from "@mui/material";
 import {
@@ -23,7 +24,7 @@ import {
 } from "@mui/icons-material";
 import ProductCard from "../components/ProductCard";
 
-export default function HomePage({ setCurrentPage, categories, handleCategorySelect, products, handleAddToCart }) {
+export default function HomePage({ setCurrentPage, categories, handleCategorySelect, products, handleAddToCart, onVariantChange, loadingProducts }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const specials = products.slice(0, 3);
@@ -39,8 +40,8 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
         }}
       >
         <Container maxWidth="lg">
-          <Grid container spacing={6} alignItems="center">
-            <Grid item xs={12} md={7}>
+          <Grid container spacing={6} sx={{ alignItems: "center" }}>
+            <Grid size={{ xs: 12, md: 7 }} >
               <Stack spacing={3}>
                 <Box>
                   <Chip
@@ -98,7 +99,7 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
               </Stack>
             </Grid>
 
-            <Grid item xs={12} md={5} sx={{ display: "flex", justifyContent: "center" }}>
+            <Grid size={{ xs: 12, md: 5 }} sx={{ display: "flex", justifyContent: "center" }}>
               <Box sx={{ position: "relative" }}>
                 <Box
                   sx={{
@@ -150,10 +151,13 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
         >
           {categories.map((cat) => (
             <Card
+              component="button"
               key={cat.id}
               onClick={() => { handleCategorySelect(cat.id); setCurrentPage("shop"); }}
               sx={{
                 textAlign: "center",
+                font: "inherit",
+                width: "100%",
                 p: 3,
                 cursor: "pointer",
                 transition: "all 0.3s",
@@ -205,7 +209,7 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
         }}
       >
         <Container maxWidth="lg">
-          <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mb: 5 }}>
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-end", mb: 5 }}>
             <Box>
               <Typography variant="h3" sx={{ fontWeight: 800, mb: 1, color: "text.primary" }}>
                 Today's Sweet Specials
@@ -226,8 +230,9 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
               gap: 3,
             }}
           >
+            {loadingProducts && <CircularProgress aria-label="Loading sweets" />}
             {specials.map((product) => (
-              <ProductCard key={product.id} product={product} handleAddToCart={handleAddToCart} />
+              <ProductCard key={product.id} product={product} handleAddToCart={handleAddToCart} onVariantChange={variant => onVariantChange(product.id, variant)} />
             ))}
           </Box>
         </Container>
@@ -241,7 +246,7 @@ export default function HomePage({ setCurrentPage, categories, handleCategorySel
             { icon: <AccessTime />, title: "Real-Time Tracking", desc: "Monitor your order's status in real-time from the moment it is confirmed until it reaches your door." },
             { icon: <LocalShipping />, title: "Hygienic Home Delivery", desc: "Our deliveries are handled securely following contact-free and high hygienic packaging standards." },
           ].map((item) => (
-            <Grid item xs={12} md={4} key={item.title}>
+            <Grid size={{ xs: 12, md: 4 }} key={item.title}>
               <Paper
                 elevation={0}
                 sx={{

@@ -1,4 +1,4 @@
-import React from "react";
+
 import {
   AppBar,
   Toolbar,
@@ -10,6 +10,8 @@ import {
   Stack,
   Box,
   Tooltip,
+  Menu,
+  MenuItem,
   useTheme,
 } from "@mui/material";
 import {
@@ -17,14 +19,17 @@ import {
   Store,
   DarkMode,
   LightMode,
+  Menu as MenuIcon,
 } from "@mui/icons-material";
-import { useThemeMode } from "../context/ThemeContext";
+import { useThemeMode } from "../context/themeMode";
+import { useState } from "react";
 
 export default function Navbar({ currentPage, setCurrentPage, cart, setIsCartOpen, fetchProducts, adminToken }) {
   const { mode, toggleTheme } = useThemeMode();
   const theme = useTheme();
   const isDark = mode === "dark";
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const [menuAnchor, setMenuAnchor] = useState(null);
 
   return (
     <AppBar
@@ -42,8 +47,10 @@ export default function Navbar({ currentPage, setCurrentPage, cart, setIsCartOpe
 
           {/* Brand Logo */}
           <Box
+            component="button"
+            aria-label="Pradeep Sweets home"
             onClick={() => setCurrentPage("home")}
-            sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer" }}
+            sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", border: 0, background: "transparent", textAlign: "left", p: 0 }}
           >
             <Store sx={{ color: "primary.main", fontSize: 32 }} />
             <Box>
@@ -121,10 +128,15 @@ export default function Navbar({ currentPage, setCurrentPage, cart, setIsCartOpe
           </Stack>
 
           {/* Right Actions */}
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <IconButton aria-label="Open navigation menu" aria-controls={menuAnchor ? "mobile-navigation" : undefined} aria-expanded={!!menuAnchor} onClick={event => setMenuAnchor(event.currentTarget)} sx={{ display: { md: "none" } }}><MenuIcon /></IconButton>
+            <Menu id="mobile-navigation" anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
+              {[{ page: "home", label: "Home" }, { page: "shop", label: "Menu Shop" }, { page: "track", label: "Track Order" }, { page: adminToken ? "admin" : "admin-login", label: adminToken ? "Admin Panel" : "Admin Login" }].map(item => <MenuItem key={item.page} onClick={() => { setCurrentPage(item.page); if (item.page === "shop") fetchProducts(); setMenuAnchor(null); }}>{item.label}</MenuItem>)}
+            </Menu>
             {/* Dark/Light Toggle */}
             <Tooltip title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}>
               <IconButton
+                aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 onClick={toggleTheme}
                 sx={{
                   color: isDark ? "#fbbf24" : "#64748b",
@@ -141,6 +153,7 @@ export default function Navbar({ currentPage, setCurrentPage, cart, setIsCartOpe
 
             {/* Cart */}
             <IconButton
+              aria-label={`Open cart, ${cartItemCount} items`}
               onClick={() => setIsCartOpen(true)}
               sx={{
                 bgcolor: isDark ? "rgba(180,83,9,0.15)" : "primary.light",

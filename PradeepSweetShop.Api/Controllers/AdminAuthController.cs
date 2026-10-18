@@ -1,7 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PradeepSweetShop.Api.Data;
@@ -12,12 +14,10 @@ namespace PradeepSweetShop.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AdminAuthController(ApplicationDbContext context, IConfiguration config) : ControllerBase
+public class AdminAuthController(ApplicationDbContext context, IConfiguration config, AdminTokens tokens) : ControllerBase
 {
-    private readonly ApplicationDbContext _context = context;
-    private readonly IConfiguration _config = config;
-
     [HttpPost("login")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login([FromBody] AdminLoginRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
@@ -25,7 +25,7 @@ public class AdminAuthController(ApplicationDbContext context, IConfiguration co
             return BadRequest(new { message = "Username and password are required." });
         }
 
-        var user = await _context.AdminUsers.FirstOrDefaultAsync(u => u.Username == request.Username);
+        var user = await context.AdminUsers.FirstOrDefaultAsync(u => u.Username == request.Username);
         if (user == null)
         {
             return Unauthorized(new { message = "Invalid username or password." });
@@ -40,22 +40,23 @@ public class AdminAuthController(ApplicationDbContext context, IConfiguration co
 
         // Generate JWT Token
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes(_config["JwtSettings:Secret"] ?? "fallback_secret_key_long_enough_32_chars");
+        var key = Encoding.UTF8.GetBytes(config["JwtSettings:Secret"]!);
         
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.Username),
             new Claim(ClaimTypes.GivenName, user.FullName),
-            new Claim(ClaimTypes.Role, user.Role)
+            new Claim(ClaimTypes.Role, user.Role),
+            new Claim("password_version", tokens.Version(user.PasswordHash))
         };
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddMinutes(double.Parse(_config["JwtSettings:ExpiryInMinutes"] ?? "360")),
-            Issuer = _config["JwtSettings:Issuer"],
-            Audience = _config["JwtSettings:Audience"],
+            Expires = DateTime.UtcNow.AddMinutes(double.Parse(config["JwtSettings:ExpiryInMinutes"] ?? "360")),
+            Issuer = config["JwtSettings:Issuer"],
+            Audience = config["JwtSettings:Audience"],
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 
@@ -64,7 +65,7 @@ public class AdminAuthController(ApplicationDbContext context, IConfiguration co
 
         // Update last login
         user.LastLogin = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
 
         return Ok(new AdminLoginResponse
         {
@@ -72,5 +73,24 @@ public class AdminAuthController(ApplicationDbContext context, IConfiguration co
             Username = user.Username,
             FullName = user.FullName
         });
+    }
+
+    [Authorize(Roles = "Admin")]
+    [EnableRateLimiting("login")]
+    [HttpPut("password")]
+    public async Task<IActionResult> ChangePassword(AdminPasswordRequest request)
+    {
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id)) return Unauthorized();
+        var user = await context.AdminUsers.FindAsync(id);
+        if (user is null || !PasswordHasher.VerifyPassword(request.CurrentPassword, user.PasswordHash, user.Salt))
+            return BadRequest(new { message = "The current password is incorrect." });
+        if (request.NewPassword == request.CurrentPassword)
+            return BadRequest(new { message = "Choose a different password." });
+        if (request.NewPassword is "admin123" or "adminpassword123")
+            return BadRequest(new { message = "Choose a unique password instead of the previous development password." });
+        var (hash, salt) = PasswordHasher.HashPassword(request.NewPassword);
+        user.PasswordHash = hash; user.Salt = salt;
+        await context.SaveChangesAsync();
+        return Ok(new { message = "Password changed. Sign in again with your new password." });
     }
 }

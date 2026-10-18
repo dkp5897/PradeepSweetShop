@@ -11,13 +11,12 @@ namespace PradeepSweetShop.Api.Controllers;
 [Route("api/[controller]")]
 public class ProductsController(ApplicationDbContext context) : ControllerBase
 {
-    private readonly ApplicationDbContext _context = context;
-
     // GET: api/products (Public - Active products and active price variants)
     [HttpGet]
-    public async Task<IActionResult> GetProducts([FromQuery] int? categoryId, [FromQuery] string? search)
+    public async Task<IActionResult> GetProducts([FromQuery] int? categoryId, [FromQuery] string? search,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 24)
     {
-        var query = _context.Products
+        var query = context.Products
             .Include(p => p.Category)
             .Include(p => p.Prices)
             .Where(p => p.IsActive && p.Category!.IsActive)
@@ -30,12 +29,18 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            query = query.Where(p => p.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase) || 
-                                     (p.Description != null && p.Description.Contains(search, StringComparison.CurrentCultureIgnoreCase)));
+            search = search.Trim();
+            query = query.Where(p => p.Name.Contains(search) ||
+                                     (p.Description != null && p.Description.Contains(search)));
         }
 
-        var products = await query
+        page = Math.Clamp(page, 1, 100000);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        Response.Headers["X-Total-Count"] = (await query.CountAsync()).ToString();
+        var products = await query.AsNoTracking()
             .OrderBy(p => p.Name)
+            .ThenBy(p => p.Id)
+            .Skip((page - 1) * pageSize).Take(pageSize)
             .Select(p => new ProductResponseDto
             {
                 Id = p.Id,
@@ -46,7 +51,7 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
                 ImageUrl = p.ImageUrl,
                 IsActive = p.IsActive,
                 AverageRating = p.Reviews.Any(r => r.IsApproved)
-                    ? Math.Round(p.Reviews.Where(r => r.IsApproved).Select(r => (double)r.Rating).Average(), 1)
+                    ? Math.Round(p.Reviews.Where(r => r.IsApproved).Average(r => (double)r.Rating), 1)
                     : 0,
                 ReviewCount = p.Reviews.Count(r => r.IsApproved),
                 Prices = p.Prices
@@ -70,7 +75,7 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
     [HttpGet("admin")]
     public async Task<IActionResult> GetProductsForAdmin()
     {
-        var products = await _context.Products
+        var products = await context.Products
             .Include(p => p.Category)
             .Include(p => p.Prices)
             .OrderBy(p => p.Name)
@@ -84,7 +89,7 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
                 ImageUrl = p.ImageUrl,
                 IsActive = p.IsActive,
                 AverageRating = p.Reviews.Any(r => r.IsApproved)
-                    ? Math.Round(p.Reviews.Where(r => r.IsApproved).Select(r => (double)r.Rating).Average(), 1)
+                    ? Math.Round(p.Reviews.Where(r => r.IsApproved).Average(r => (double)r.Rating), 1)
                     : 0,
                 ReviewCount = p.Reviews.Count(r => r.IsApproved),
                 Prices = p.Prices.Select(pr => new ProductPriceDto
@@ -105,11 +110,11 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetProduct(int id)
     {
-        var product = await _context.Products
+        var product = await context.Products
             .Include(p => p.Category)
             .Include(p => p.Prices)
             .Include(p => p.Reviews)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id && p.IsActive && p.Category!.IsActive);
 
         if (product == null)
         {
@@ -126,7 +131,7 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
             CategoryName = product.Category?.Name,
             ImageUrl = product.ImageUrl,
             IsActive = product.IsActive,
-            AverageRating = approvedReviews.Any() ? Math.Round(approvedReviews.Select(r => (double)r.Rating).Average(), 1) : 0,
+            AverageRating = approvedReviews.Any() ? Math.Round(approvedReviews.Average(r => (double)r.Rating), 1) : 0,
             ReviewCount = approvedReviews.Count,
             Prices = [.. product.Prices.Select(pr => new ProductPriceDto
             {
@@ -156,7 +161,7 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
             return BadRequest(new { message = "At least one pricing option/variant is required." });
         }
 
-        var categoryExists = await _context.Categories.AnyAsync(c => c.Id == request.CategoryId);
+        var categoryExists = await context.Categories.AnyAsync(c => c.Id == request.CategoryId);
         if (!categoryExists)
         {
             return BadRequest(new { message = "Invalid category." });
@@ -178,8 +183,8 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
             })]
         };
 
-        _context.Products.Add(product);
-        await _context.SaveChangesAsync();
+        context.Products.Add(product);
+        await context.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
     }
@@ -199,7 +204,7 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
             return BadRequest(new { message = "At least one pricing option/variant is required." });
         }
 
-        var product = await _context.Products
+        var product = await context.Products
             .Include(p => p.Prices)
             .FirstOrDefaultAsync(p => p.Id == id);
 
@@ -208,13 +213,19 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
             return NotFound(new { message = "Product not found." });
         }
 
-        var categoryExists = await _context.Categories.AnyAsync(c => c.Id == request.CategoryId);
+        var categoryExists = await context.Categories.AnyAsync(c => c.Id == request.CategoryId);
         if (!categoryExists)
         {
             return BadRequest(new { message = "Invalid category." });
         }
 
         // Update product details
+        if (request.Prices.Where(p => p.Id != 0).Any(p =>
+            product.Prices.All(existing => existing.Id != p.Id) ||
+            product.Prices.Any(existing => existing.Id == p.Id && p.OriginalStockQuantity != existing.StockQuantity)))
+            return Conflict(new { message = "Stock changed while you were editing. Reopen this product to load the current stock." });
+        if (request.Prices.Where(p => p.Id != 0).GroupBy(p => p.Id).Any(g => g.Count() > 1))
+            return BadRequest(new { message = "Duplicate pack sizes are not allowed." });
         product.Name = request.Name;
         product.Description = request.Description;
         product.CategoryId = request.CategoryId;
@@ -229,14 +240,14 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
         foreach (var dp in deletedPrices)
         {
             // If the price variant has orders, we shouldn't hard-delete it, just deactivate it
-            var hasOrders = await _context.OrderItems.AnyAsync(oi => oi.ProductPriceId == dp.Id);
+            var hasOrders = await context.OrderItems.AnyAsync(oi => oi.ProductPriceId == dp.Id);
             if (hasOrders)
             {
                 dp.IsAvailable = false;
             }
             else
             {
-                _context.ProductPrices.Remove(dp);
+                context.ProductPrices.Remove(dp);
             }
         }
 
@@ -266,7 +277,7 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
             }
         }
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return Ok(new { message = "Product updated successfully." });
     }
 
@@ -275,24 +286,24 @@ public class ProductsController(ApplicationDbContext context) : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteProduct(int id)
     {
-        var product = await _context.Products.FindAsync(id);
+        var product = await context.Products.FindAsync(id);
         if (product == null)
         {
             return NotFound(new { message = "Product not found." });
         }
 
         // Check if there are order items referencing this product
-        var hasOrders = await _context.OrderItems.AnyAsync(oi => oi.ProductId == id);
+        var hasOrders = await context.OrderItems.AnyAsync(oi => oi.ProductId == id);
         if (hasOrders)
         {
             // Soft delete by deactivating
             product.IsActive = false;
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
             return Ok(new { message = "Product has order history. Deactivated instead of deleted.", deactivated = true });
         }
 
-        _context.Products.Remove(product);
-        await _context.SaveChangesAsync();
+        context.Products.Remove(product);
+        await context.SaveChangesAsync();
         return Ok(new { message = "Product deleted successfully.", deleted = true });
     }
 }
