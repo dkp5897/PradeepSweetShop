@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Box,
   Typography,
@@ -61,6 +61,10 @@ export default function ProductCard({ product, handleAddToCart, onVariantChange,
           {product.imageUrl ? (
             <Box
               component="img"
+              loading="lazy"
+              decoding="async"
+              width={400}
+              height={200}
               src={product.imageUrl}
               alt={product.name}
               sx={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block" }}

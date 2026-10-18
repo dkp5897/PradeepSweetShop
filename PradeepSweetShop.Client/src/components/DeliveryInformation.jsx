@@ -1,4 +1,4 @@
-import React from "react";
+
 import {
   Box,
   Paper,
@@ -8,14 +8,12 @@ import {
   TextField,
   Button,
   CircularProgress,
+  Checkbox,
+  FormControlLabel,
   useTheme,
 } from "@mui/material";
 import {
   LocationOn,
-  Person,
-  Phone,
-  Email,
-  Notes,
   Payments,
 } from "@mui/icons-material";
 
@@ -24,6 +22,10 @@ export default function DeliveryInformation({
   handleInputChange,
   handleSubmit,
   isSubmitting = false,
+  checkingCart = false,
+  rememberDetails,
+  onRememberChange,
+  onForgetDetails,
   cartTotal = 0,
   cartLength = 0,
   submitButtonText,
@@ -47,7 +49,7 @@ export default function DeliveryInformation({
       }}
     >
       {/* Header */}
-      <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 0.5 }}>
+      <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", mb: 0.5 }}>
         <Box
           sx={{
             p: 0.75,
@@ -98,34 +100,33 @@ export default function DeliveryInformation({
               <TextField
                 fullWidth
                 size="small"
-                label="Customer Full Name *"
+                label="Full name"
                 name="name"
+                autoComplete="name"
+                disabled={isSubmitting}
+                slotProps={{ htmlInput: { maxLength: 100 } }}
                 required
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="e.g. Rajesh Kumar"
-                InputProps={{
-                  startAdornment: (
-                    <Person sx={{ color: "text.secondary", mr: 0.75, fontSize: 18 }} />
-                  ),
-                }}
+
               />
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <TextField
                 fullWidth
                 size="small"
-                label="Phone Number (10 digits) *"
+                label="Mobile number"
                 name="phone"
+                type="tel"
+                autoComplete="tel"
+                disabled={isSubmitting}
+                slotProps={{ htmlInput: { inputMode: "tel", maxLength: 25 } }}
                 required
                 value={formData.phone}
                 onChange={handleInputChange}
                 placeholder="e.g. 9876543210"
-                InputProps={{
-                  startAdornment: (
-                    <Phone sx={{ color: "text.secondary", mr: 0.75, fontSize: 18 }} />
-                  ),
-                }}
+
               />
             </Box>
           </Box>
@@ -135,22 +136,24 @@ export default function DeliveryInformation({
             size="small"
             label="Email Address (Optional)"
             name="email"
+            autoComplete="email"
+            disabled={isSubmitting}
+            slotProps={{ htmlInput: { maxLength: 254 } }}
             type="email"
             value={formData.email}
             onChange={handleInputChange}
             placeholder="e.g. rajesh@example.com"
-            InputProps={{
-              startAdornment: (
-                <Email sx={{ color: "text.secondary", mr: 0.75, fontSize: 18 }} />
-              ),
-            }}
+
           />
 
           <TextField
             fullWidth
             size="small"
-            label="Complete Delivery Address *"
+            label="Delivery address"
             name="address"
+            autoComplete="street-address"
+            disabled={isSubmitting}
+            slotProps={{ htmlInput: { maxLength: 500, minLength: 10 } }}
             required
             multiline
             rows={2}
@@ -164,27 +167,25 @@ export default function DeliveryInformation({
             size="small"
             label="Order Notes / Delivery Instructions (Optional)"
             name="notes"
+            disabled={isSubmitting}
+            slotProps={{ htmlInput: { maxLength: 1000 } }}
             multiline
-            rows={1.5}
+            rows={2}
             value={formData.notes}
             onChange={handleInputChange}
             placeholder="e.g. Ring doorbell twice, deliver fresh before 6 PM"
-            InputProps={{
-              startAdornment: (
-                <Notes
-                  sx={{
-                    color: "text.secondary",
-                    mr: 0.75,
-                    fontSize: 18,
-                    alignSelf: "flex-start",
-                    mt: 0.5,
-                  }}
-                />
-              ),
-            }}
+
           />
         </Stack>
 
+        <TextField fullWidth size="small" label="Delivery pincode" name="pincode" required
+          autoComplete="postal-code" value={formData.pincode} onChange={handleInputChange} disabled={isSubmitting}
+          slotProps={{ htmlInput: { inputMode: "numeric", maxLength: 6, pattern: "[0-9]{6}" } }} />
+        <Box>
+          <FormControlLabel control={<Checkbox checked={rememberDetails} disabled={isSubmitting} onChange={event => onRememberChange(event.target.checked)} />} label="Remember my details on this device" />
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Use this on a personal device. Your name, phone, email and address will be saved after checkout. Order notes are not saved.</Typography>
+          {rememberDetails && <Button size="small" disabled={isSubmitting} onClick={onForgetDetails}>Forget saved details</Button>}
+        </Box>
         {/* Submit Button */}
         <Button
           variant="contained"
@@ -192,7 +193,7 @@ export default function DeliveryInformation({
           form="checkout-form"
           size="medium"
           fullWidth
-          disabled={isSubmitting || cartLength === 0}
+          disabled={isSubmitting || checkingCart || cartLength === 0}
           startIcon={
             isSubmitting ? (
               <CircularProgress size={18} color="inherit" />
@@ -215,7 +216,7 @@ export default function DeliveryInformation({
             },
           }}
         >
-          {isSubmitting
+          {checkingCart ? "Checking prices and availability..." : isSubmitting
             ? "Placing Your Order..."
             : submitButtonText || `Confirm & Place Order (₹${cartTotal})`}
         </Button>

@@ -16,6 +16,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<Order>().Property(o => o.RequestKey).HasMaxLength(64);
+        modelBuilder.Entity<Order>().Property(o => o.RequestHash).HasMaxLength(64);
+        modelBuilder.Entity<Order>().HasIndex(o => o.RequestKey).IsUnique()
+            .HasFilter("[RequestKey] IS NOT NULL");
+        modelBuilder.Entity<Order>().Property(o => o.OrderStatus).IsConcurrencyToken();
+        modelBuilder.Entity<Order>().Property(o => o.DeliveryFee).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<ProductPrice>().Property(p => p.StockQuantity).IsConcurrencyToken();
 
         // ProductReview relation config
         modelBuilder.Entity<ProductReview>()

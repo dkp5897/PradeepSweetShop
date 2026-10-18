@@ -1,4 +1,4 @@
-import React from "react";
+
 import {
   Container,
   Box,
@@ -8,6 +8,7 @@ import {
   Chip,
   CircularProgress,
   Paper,
+  Pagination,
   InputAdornment,
   useTheme,
 } from "@mui/material";
@@ -25,6 +26,10 @@ export default function ShopPage({
   loadingProducts,
   setProducts,
   handleAddToCart,
+  catalogPage,
+  catalogTotal,
+  onPageChange,
+  clearFilters,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -61,15 +66,16 @@ export default function ShopPage({
             size="small"
             fullWidth
             placeholder="Search sweets (e.g. Kaju, Laddu)..."
+            label="Search sweets"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
+            slotProps={{ input: {
               startAdornment: (
                 <InputAdornment position="start">
                   <Search sx={{ color: "text.secondary" }} />
                 </InputAdornment>
               ),
-            }}
+            } }}
           />
           <Button
             variant="contained"
@@ -183,7 +189,7 @@ export default function ShopPage({
               background: "linear-gradient(135deg, #b45309, #f59e0b)",
               "&:hover": { background: "linear-gradient(135deg, #92400e, #d97706)" },
             }}
-            onClick={() => handleCategorySelect(null)}
+            onClick={clearFilters}
           >
             Clear Filters
           </Button>
@@ -213,6 +219,7 @@ export default function ShopPage({
           ))}
         </Box>
       )}
+      {catalogTotal > 24 && <Pagination sx={{ mt: 3 }} count={Math.ceil(catalogTotal / 24)} page={catalogPage} onChange={(_, page) => onPageChange(page)} />}
     </Container>
   );
 }

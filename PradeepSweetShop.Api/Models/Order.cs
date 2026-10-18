@@ -11,9 +11,12 @@ public class Order
     public DateTime OrderDate { get; set; } = DateTime.UtcNow;
     public string OrderStatus { get; set; } = "Pending"; // Pending, Confirmed, Preparing, OutForDelivery, Delivered, Cancelled
     public decimal TotalAmount { get; set; }
+    public decimal DeliveryFee { get; set; }
     public string PaymentMethod { get; set; } = "CashOnDelivery";
     public string PaymentStatus { get; set; } = "Pending";
     public string? OrderNotes { get; set; }
+    public string? RequestKey { get; set; }
+    public string? RequestHash { get; set; }
 
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Paper,
   Box,
@@ -67,7 +67,7 @@ export default function AdminCategoriesTab({ adminCategories, fetchAdminData }) 
 
       <Grid container spacing={3}>
         {/* Category Form */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }} >
           <Paper
             elevation={0}
             sx={{
@@ -116,7 +116,7 @@ export default function AdminCategoriesTab({ adminCategories, fetchAdminData }) 
         </Grid>
 
         {/* Categories Table */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }} >
           <TableContainer
             component={Paper}
             elevation={0}
@@ -146,7 +146,7 @@ export default function AdminCategoriesTab({ adminCategories, fetchAdminData }) 
                       {cat.description || "--"}
                     </TableCell>
                     <TableCell align="right">
-                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                      <Stack direction="row" spacing={0.5} sx={{ justifyContent: "flex-end" }}>
                         <IconButton size="small" onClick={() => handleEdit(cat)} sx={{ color: "primary.main" }}>
                           <Edit fontSize="small" />
                         </IconButton>

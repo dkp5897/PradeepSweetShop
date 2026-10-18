@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Container,
   Box,
@@ -13,8 +13,9 @@ import {
   useTheme,
 } from "@mui/material";
 import { Store, DarkMode, LightMode } from "@mui/icons-material";
-import { useThemeMode } from "../../context/ThemeContext";
+import { useThemeMode } from "../../context/themeMode";
 import { api } from "../../api";
+import { writeStored } from "../../storage";
 
 export default function AdminLoginPage({ setAdminUser, setAdminToken, setCurrentPage }) {
   const theme = useTheme();
@@ -32,8 +33,9 @@ export default function AdminLoginPage({ setAdminUser, setAdminToken, setCurrent
     setError("");
     try {
       const response = await api.loginAdmin(username, password);
-      localStorage.setItem("admin_token", response.token);
-      localStorage.setItem("admin_user", JSON.stringify({ username: response.username, fullName: response.fullName }));
+      if (!writeStored("admin_token", response.token, true) ||
+          !writeStored("admin_user", { username: response.username, fullName: response.fullName }, true))
+        throw new Error("Enable session storage in this browser to sign in to the admin dashboard.");
       setAdminToken(response.token);
       setAdminUser({ username: response.username, fullName: response.fullName });
       setCurrentPage("admin");
@@ -98,7 +100,7 @@ export default function AdminLoginPage({ setAdminUser, setAdminToken, setCurrent
             backdropFilter: "blur(20px)",
           }}
         >
-          <Stack alignItems="center" sx={{ mb: 4 }}>
+          <Stack sx={{ alignItems: "center", mb: 4 }}>
             <Box
               sx={{
                 width: 56,

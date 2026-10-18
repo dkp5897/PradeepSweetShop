@@ -49,13 +49,13 @@ export default function CartDrawer({
             alignItems: "center",
           }}
         >
-          <Stack direction="row" spacing={1.5} alignItems="center">
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
             <ShoppingBag color="primary" />
             <Typography variant="h6" sx={{ fontWeight: 800, color: "text.primary" }}>
               Sweets Cart
             </Typography>
           </Stack>
-          <IconButton onClick={() => setIsCartOpen(false)} sx={{ color: "text.secondary" }}>
+          <IconButton aria-label="Close cart" onClick={() => setIsCartOpen(false)} sx={{ color: "text.secondary" }}>
             <Close />
           </IconButton>
         </Box>
@@ -63,7 +63,7 @@ export default function CartDrawer({
         {/* Items */}
         <Box sx={{ flexGrow: 1, overflowY: "auto", p: 2.5 }}>
           {cart.length === 0 ? (
-            <Stack spacing={2} alignItems="center" sx={{ mt: 10, textAlign: "center" }}>
+            <Stack spacing={2} sx={{ alignItems: "center", mt: 10, textAlign: "center" }}>
               <ShoppingCart sx={{ fontSize: 60, color: "text.secondary", opacity: 0.2 }} />
               <Typography variant="body1" sx={{ fontWeight: 600, color: "text.secondary" }}>
                 Your cart is empty
@@ -106,9 +106,7 @@ export default function CartDrawer({
           >
             <Stack
               direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              sx={{ width: "100%", mb: 1.5 }}
+              sx={{ justifyContent: "space-between", alignItems: "center", width: "100%", mb: 1.5 }}
             >
               <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "text.primary" }}>
                 Subtotal
@@ -119,7 +117,7 @@ export default function CartDrawer({
             </Stack>
 
             <Typography variant="caption" sx={{ display: "block", mb: 2.5, color: "text.secondary" }}>
-              Shipping & delivery costs are covered. Order updates instantly via live timeline.
+              Delivery fees and the final total are shown at checkout.
             </Typography>
             <Button
               variant="contained"
@@ -144,4 +142,3 @@ export default function CartDrawer({
     </Drawer>
   );
 }
-

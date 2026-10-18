@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Container,
   Grid,
@@ -29,6 +29,8 @@ import {
 import { api } from "../api";
 import OrderItem from "../components/OrderItem";
 import DeliveryInformation from "../components/DeliveryInformation";
+import { readStored, writeStored } from "../storage";
+import { savedDetails, normalizePhone, reconcileCart, deliveryFee } from "../checkout";
 
 export default function CheckoutPage({
   cart = [],
@@ -37,32 +39,64 @@ export default function CheckoutPage({
   setCurrentPage,
   setTrackedOrder,
   handleUpdateCartQty,
+  shop,
+  onNotice,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const isMobile = useMediaQuery("(max-width:600px)");
-  const [isCartExpanded, setIsCartExpanded] = useState(true);
-
-  useEffect(() => {
-    if (isMobile) {
-      setIsCartExpanded(false);
-    } else {
-      setIsCartExpanded(true);
-    }
-  }, [isMobile]);
-
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    address: "",
-    notes: "",
-  });
+  const [cartExpanded, setIsCartExpanded] = useState(false);
+  const isCartExpanded = !isMobile || cartExpanded;
+  const [formData, setFormData] = useState(() => savedDetails(readStored("delivery_details", null)));
+  const [rememberDetails, setRememberDetails] = useState(() => !!readStored("delivery_details", null));
+  const [checkingCart, setCheckingCart] = useState(true);
+  const [cartNotice, setCartNotice] = useState("");
+  const [storageNotice, setStorageNotice] = useState("");
+  const submission = useRef(false);
+  const pending = useRef((() => {
+    const value = readStored("pending_checkout", null, true);
+    return value && typeof value.key === "string" && /^[a-f0-9-]{36}$/i.test(value.key) &&
+      typeof value.fingerprint === "string" && /^[a-f0-9]{64}$/i.test(value.fingerprint) ? value : null;
+  })());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const totalItemCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
   const cartTotal = typeof getCartTotal === "function" ? getCartTotal() : 0;
+  const shippingFee = deliveryFee(cartTotal, shop);
+  const payableTotal = cartTotal + shippingFee;
+
+  useEffect(() => {
+    let disposed = false;
+    async function checkCart() {
+      setCheckingCart(true);
+      try {
+        const products = await Promise.all([...new Set(cart.map(i => i.productId))].map(id =>
+          api.getProduct(id).catch(error => { if (error.status === 404) return null; throw error; })));
+        if (disposed) return;
+        const updated = reconcileCart(cart, products.filter(Boolean));
+        if (JSON.stringify(updated) !== JSON.stringify(cart)) {
+          setCart(updated);
+          setCartNotice("Your cart was updated to reflect current prices and availability. Please review the total.");
+        }
+      } catch (error) { if (!disposed) setErrorMessage(error.message); }
+      finally { if (!disposed) setCheckingCart(false); }
+    }
+    checkCart();
+    return () => { disposed = true; };
+  }, [cart, setCart]);
+
+  const forgetDetails = () => {
+    const removed = writeStored("delivery_details", null);
+    setRememberDetails(false);
+    setFormData(savedDetails(null));
+    setStorageNotice(removed ? "Saved delivery details have been forgotten." : "Browser storage is unavailable. Clear this site's data in your browser to remove saved details.");
+  };
+  const changeRemember = checked => {
+    setRememberDetails(checked);
+    if (!checked && !writeStored("delivery_details", null))
+      setStorageNotice("Browser storage is unavailable. Clear this site's data in your browser to remove saved details.");
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -72,6 +106,7 @@ export default function CheckoutPage({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submission.current || checkingCart || !shop) return;
     setErrorMessage("");
 
     if (cart.length === 0) {
@@ -84,17 +119,28 @@ export default function CheckoutPage({
       return;
     }
 
-    const phoneRegex = /^[0-9+ ]{10,15}$/;
-    if (!phoneRegex.test(formData.phone.trim())) {
-      setErrorMessage("Please enter a valid 10-digit phone number.");
+    const phone = normalizePhone(formData.phone.trim());
+    if (!phone) {
+      setErrorMessage("Please enter a valid Indian mobile number, optionally prefixed with +91.");
+      return;
+    }
+    if (!shop.deliveryPincodes.includes(formData.pincode.trim())) {
+      setErrorMessage(`We currently deliver to pincode ${shop.deliveryPincodes.join(", ")}.`);
+      return;
+    }
+    if (cartTotal < shop.minimumOrder) {
+      setErrorMessage(`The minimum order is ₹${shop.minimumOrder}, excluding delivery.`);
       return;
     }
 
+    submission.current = true;
     setIsSubmitting(true);
     try {
       const orderData = {
         customerName: formData.name.trim(),
-        customerPhone: formData.phone.trim(),
+        customerPhone: phone,
+        expectedTotal: Number(payableTotal.toFixed(2)),
+        pincode: formData.pincode.trim(),
         customerEmail: formData.email ? formData.email.trim() : null,
         deliveryAddress: formData.address.trim(),
         orderNotes: formData.notes ? formData.notes.trim() : null,
@@ -105,7 +151,28 @@ export default function CheckoutPage({
         })),
       };
 
-      const response = await api.placeOrder(orderData);
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(orderData)));
+      const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+      if (pending.current && pending.current.fingerprint !== fingerprint) {
+        // Resolve an uncertain previous attempt before allowing different details.
+        const previous = await api.recoverOrder(pending.current.key);
+        if (previous) {
+          setCart([]); setTrackedOrder(previous); setCurrentPage("track");
+          writeStored("pending_checkout", null, true); pending.current = null;
+          return;
+        }
+        pending.current = null;
+      }
+      pending.current ||= { key: crypto.randomUUID(), fingerprint };
+      writeStored("pending_checkout", pending.current, true);
+      const response = await api.placeOrder(orderData, pending.current.key);
+      if (rememberDetails) {
+        const details = { name: formData.name.trim(), phone, email: formData.email.trim(), address: formData.address.trim(), pincode: formData.pincode.trim() };
+        if (!writeStored("delivery_details", details))
+          onNotice("Your order was placed, but this browser could not save your delivery details.");
+      }
+      writeStored("pending_checkout", null, true);
+      pending.current = null;
       if (typeof setCart === "function") {
         setCart([]);
       }
@@ -116,8 +183,11 @@ export default function CheckoutPage({
         setCurrentPage("track");
       }
     } catch (err) {
+      // A rejected retry (including throttling) does not prove an earlier
+      // attempt failed. Keep the key until recovery resolves the outcome.
       setErrorMessage(err.message || "Failed to place order. Please check availability or try again.");
     } finally {
+      submission.current = false;
       setIsSubmitting(false);
     }
   };
@@ -182,7 +252,7 @@ export default function CheckoutPage({
   return (
     <Container maxWidth="lg" sx={{ py: 2 }}>
       {/* Top Navigation & Breadcrumbs */}
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
         <Button
           startIcon={<ArrowBack />}
           onClick={() => setCurrentPage("shop")}
@@ -199,9 +269,9 @@ export default function CheckoutPage({
 
       {/* Page Header */}
       <Box sx={{ mb: 4 }}>
-        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={1}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" } }}>
           <Box>
-            <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5, color: "text.primary" }}>
+            <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5, color: "text.primary", fontSize: { xs: "2rem", sm: "2.75rem", md: "3rem" } }}>
               Checkout & Delivery Details
             </Typography>
             <Typography variant="body1" sx={{ color: "text.secondary" }}>
@@ -223,6 +293,10 @@ export default function CheckoutPage({
           {errorMessage}
         </Alert>
       )}
+      {cartNotice && <Alert severity="info" sx={{ mb: 2 }}>{cartNotice}</Alert>}
+      {storageNotice && <Alert severity="info" sx={{ mb: 2 }}>{storageNotice}</Alert>}
+      {shop && <Alert severity="info" sx={{ mb: 2 }}>Delivery to {shop.deliveryPincodes.join(", ")} · Minimum order ₹{shop.minimumOrder} · ₹{shop.deliveryFee} delivery below ₹{shop.freeDeliveryFrom}, free from ₹{shop.freeDeliveryFrom}. Estimated delivery: {shop.estimatedDeliveryMinutes} minutes. Open {shop.openingHours}.</Alert>}
+      {shop && cartTotal < shop.minimumOrder && <Alert severity="warning" sx={{ mb: 2 }}>Add ₹{(shop.minimumOrder - cartTotal).toFixed(2)} more in sweets to reach the minimum order. Delivery is charged separately.</Alert>}
 
       <Box
         sx={{
@@ -250,10 +324,7 @@ export default function CheckoutPage({
             {/* Header (Clickable Collapse Toggle on Mobile) */}
             <Stack
               direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              onClick={() => isMobile && setIsCartExpanded((prev) => !prev)}
-              sx={{
+              sx={{ justifyContent: "space-between", alignItems: "center",
                 width: "100%",
                 mb: isCartExpanded ? 1.5 : 0,
                 cursor: isMobile ? "pointer" : "default",
@@ -261,13 +332,13 @@ export default function CheckoutPage({
               }}
             >
               <Box>
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                   <Typography variant="h6" sx={{ fontWeight: 800, color: "text.primary" }}>
                     Selected Sweets
                   </Typography>
                   {isMobile && !isCartExpanded && (
                     <Typography variant="subtitle2" sx={{ color: "primary.main", fontWeight: 800 }}>
-                      (₹{cartTotal})
+                      (₹{payableTotal.toFixed(2)})
                     </Typography>
                   )}
                 </Stack>
@@ -278,7 +349,7 @@ export default function CheckoutPage({
                 </Typography>
               </Box>
 
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: "auto" }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center", ml: "auto" }}>
                 <Chip
                   label={`${totalItemCount} ${totalItemCount === 1 ? "item" : "items"}`}
                   size="small"
@@ -289,7 +360,7 @@ export default function CheckoutPage({
                   }}
                 />
                 {isMobile && (
-                  <IconButton size="small" sx={{ color: "primary.main", p: 0.5 }}>
+                  <IconButton aria-label={isCartExpanded ? "Hide cart summary" : "Show cart summary"} aria-expanded={isCartExpanded} aria-controls="checkout-cart-summary" onClick={() => setIsCartExpanded(prev => !prev)} size="small" sx={{ color: "primary.main", p: 0.5 }}>
                     {isCartExpanded ? <ExpandLess /> : <ExpandMore />}
                   </IconButton>
                 )}
@@ -297,7 +368,7 @@ export default function CheckoutPage({
             </Stack>
 
             {/* Collapsible Content Body */}
-            <Collapse in={isCartExpanded} timeout="auto" sx={{ width: "100%", flexGrow: 1, display: "flex", flexDirection: "column" }}>
+            <Collapse id="checkout-cart-summary" in={isCartExpanded} timeout="auto" sx={{ width: "100%", flexGrow: 1, display: "flex", flexDirection: "column" }}>
               <Box sx={{ width: "100%", display: "flex", flexDirection: "column", flexGrow: 1, gap: 1.25 }}>
                 <Divider sx={{ mb: 0.5, borderColor: theme.palette.divider }} />
 
@@ -326,7 +397,7 @@ export default function CheckoutPage({
                       {idx > 0 && <Divider sx={{ my: 0.5, borderColor: theme.palette.divider }} />}
                       <OrderItem
                         item={item}
-                        handleUpdateCartQty={handleUpdateCartQty}
+                        handleUpdateCartQty={isSubmitting ? undefined : handleUpdateCartQty}
                       />
                     </React.Fragment>
                   ))}
@@ -350,7 +421,7 @@ export default function CheckoutPage({
                       Sweets Gift Packaging
                     </Typography>
                     <Typography variant="body2" sx={{ color: "success.main", fontWeight: 700, textAlign: "right", fontSize: "0.85rem" }}>
-                      FREE
+                      Included
                     </Typography>
                   </Box>
 
@@ -359,7 +430,7 @@ export default function CheckoutPage({
                       Doorstep Delivery
                     </Typography>
                     <Typography variant="body2" sx={{ color: "success.main", fontWeight: 700, textAlign: "right", fontSize: "0.85rem" }}>
-                      FREE
+                      {shippingFee === 0 ? "FREE" : `₹${shippingFee.toFixed(2)}`}
                     </Typography>
                   </Box>
 
@@ -371,11 +442,11 @@ export default function CheckoutPage({
                         Total Payable
                       </Typography>
                       <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                        Includes all taxes
+                        Includes delivery
                       </Typography>
                     </Box>
                     <Typography variant="h6" sx={{ fontWeight: 900, color: "primary.main", textAlign: "right" }}>
-                      ₹{cartTotal}
+                      ₹{payableTotal.toFixed(2)}
                     </Typography>
                   </Box>
                 </Box>
@@ -391,24 +462,24 @@ export default function CheckoutPage({
                   }}
                 >
                   <Grid container spacing={1}>
-                    <Grid item xs={12} sm={4}>
-                      <Stack direction="row" spacing={0.75} alignItems="center">
+                    <Grid size={{ xs: 12, sm: 4 }} >
+                      <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
                         <LocalShipping sx={{ color: "primary.main", fontSize: 18 }} />
                         <Typography variant="caption" sx={{ fontWeight: 700, color: "text.primary" }}>
                           Fresh Local Delivery
                         </Typography>
                       </Stack>
                     </Grid>
-                    <Grid item xs={12} sm={4}>
-                      <Stack direction="row" spacing={0.75} alignItems="center">
+                    <Grid size={{ xs: 12, sm: 4 }} >
+                      <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
                         <VerifiedUser sx={{ color: "success.main", fontSize: 18 }} />
                         <Typography variant="caption" sx={{ fontWeight: 700, color: "text.primary" }}>
                           100% Pure Sweets
                         </Typography>
                       </Stack>
                     </Grid>
-                    <Grid item xs={12} sm={4}>
-                      <Stack direction="row" spacing={0.75} alignItems="center">
+                    <Grid size={{ xs: 12, sm: 4 }} >
+                      <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
                         <CheckCircle sx={{ color: "warning.main", fontSize: 18 }} />
                         <Typography variant="caption" sx={{ fontWeight: 700, color: "text.primary" }}>
                           Pay on Delivery
@@ -429,7 +500,11 @@ export default function CheckoutPage({
             handleInputChange={handleInputChange}
             handleSubmit={handleSubmit}
             isSubmitting={isSubmitting}
-            cartTotal={cartTotal}
+            checkingCart={checkingCart || !shop}
+            rememberDetails={rememberDetails}
+            onRememberChange={changeRemember}
+            onForgetDetails={forgetDetails}
+            cartTotal={payableTotal}
             cartLength={cart.length}
           />
         </Box>

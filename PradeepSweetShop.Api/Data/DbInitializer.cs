@@ -5,7 +5,7 @@ namespace PradeepSweetShop.Api.Data;
 
 public static class DbInitializer
 {
-    public static void Initialize(ApplicationDbContext context)
+    public static void Initialize(ApplicationDbContext context, IConfiguration configuration)
     {
         // Ensure database is created
         context.Database.EnsureCreated();
@@ -17,7 +17,10 @@ public static class DbInitializer
         }
 
         // Seed Admin User
-        var (hash, salt) = PasswordHasher.HashPassword("admin123");
+        var password = configuration["Bootstrap:AdminPassword"];
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 12)
+            throw new InvalidOperationException("For a new development database, set Bootstrap__AdminPassword to a password of at least 12 characters.");
+        var (hash, salt) = PasswordHasher.HashPassword(password);
         var admin = new AdminUser
         {
             Username = "admin",

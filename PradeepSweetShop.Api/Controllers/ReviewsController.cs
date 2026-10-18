@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using PradeepSweetShop.Api.Data;
 using PradeepSweetShop.Api.DTOs;
@@ -11,21 +12,22 @@ namespace PradeepSweetShop.Api.Controllers;
 [Route("api")]
 public class ReviewsController(ApplicationDbContext context) : ControllerBase
 {
-    private readonly ApplicationDbContext _context = context;
-
     // GET: api/products/5/reviews (Public - Get approved reviews for a product)
     [HttpGet("products/{productId}/reviews")]
-    public async Task<IActionResult> GetProductReviews(int productId)
+    public async Task<IActionResult> GetProductReviews(int productId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
-        var productExists = await _context.Products.AnyAsync(p => p.Id == productId);
+        var productExists = await context.Products.AnyAsync(p => p.Id == productId);
         if (!productExists)
         {
             return NotFound(new { message = "Product not found." });
         }
 
-        var reviews = await _context.ProductReviews
-            .Where(r => r.ProductId == productId && r.IsApproved)
+        var query = context.ProductReviews.AsNoTracking().Where(r => r.ProductId == productId && r.IsApproved);
+        Response.Headers["X-Total-Count"] = (await query.CountAsync()).ToString();
+        var reviews = await query
             .OrderByDescending(r => r.CreatedAt)
+            .ThenByDescending(r => r.Id)
+            .Skip((Math.Clamp(page, 1, 100000) - 1) * Math.Clamp(pageSize, 1, 50)).Take(Math.Clamp(pageSize, 1, 50))
             .Select(r => new ProductReviewDto
             {
                 Id = r.Id,
@@ -42,6 +44,7 @@ public class ReviewsController(ApplicationDbContext context) : ControllerBase
 
     // POST: api/products/5/reviews (Public - Submit a review for a product)
     [HttpPost("products/{productId}/reviews")]
+    [EnableRateLimiting("reviews")]
     public async Task<IActionResult> SubmitProductReview(int productId, [FromBody] ReviewCreateRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.CustomerName))
@@ -54,7 +57,7 @@ public class ReviewsController(ApplicationDbContext context) : ControllerBase
             return BadRequest(new { message = "Rating must be between 1 and 5 stars." });
         }
 
-        var product = await _context.Products.FindAsync(productId);
+        var product = await context.Products.FindAsync(productId);
         if (product == null)
         {
             return NotFound(new { message = "Product not found." });
@@ -68,11 +71,11 @@ public class ReviewsController(ApplicationDbContext context) : ControllerBase
             Rating = request.Rating,
             Comment = string.IsNullOrWhiteSpace(request.Comment) ? null : request.Comment.Trim(),
             CreatedAt = DateTime.UtcNow,
-            IsApproved = true // Automatically approved by default
+            IsApproved = false
         };
 
-        _context.ProductReviews.Add(review);
-        await _context.SaveChangesAsync();
+        context.ProductReviews.Add(review);
+        await context.SaveChangesAsync();
 
         var responseDto = new ProductReviewDto
         {
@@ -84,17 +87,20 @@ public class ReviewsController(ApplicationDbContext context) : ControllerBase
             CreatedAt = review.CreatedAt
         };
 
-        return CreatedAtAction(nameof(GetProductReviews), new { productId }, responseDto);
+        return CreatedAtAction(nameof(GetProductReviews), new { productId }, new { message = "Your review has been submitted for approval.", review = responseDto });
     }
 
     // GET: api/reviews/admin (Admin - Get all reviews across all products)
     [Authorize(Roles = "Admin")]
     [HttpGet("reviews/admin")]
-    public async Task<IActionResult> GetAllReviewsForAdmin()
+    public async Task<IActionResult> GetAllReviewsForAdmin([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var reviews = await _context.ProductReviews
+        Response.Headers["X-Total-Count"] = (await context.ProductReviews.CountAsync()).ToString();
+        var reviews = await context.ProductReviews.AsNoTracking()
             .Include(r => r.Product)
             .OrderByDescending(r => r.CreatedAt)
+            .ThenByDescending(r => r.Id)
+            .Skip((Math.Clamp(page, 1, 100000) - 1) * Math.Clamp(pageSize, 1, 100)).Take(Math.Clamp(pageSize, 1, 100))
             .Select(r => new AdminReviewDto
             {
                 Id = r.Id,
@@ -114,17 +120,28 @@ public class ReviewsController(ApplicationDbContext context) : ControllerBase
 
     // DELETE: api/reviews/5 (Admin - Delete a review)
     [Authorize(Roles = "Admin")]
+    [HttpPut("reviews/{id}/approval")]
+    public async Task<IActionResult> SetApproval(int id, ReviewApprovalRequest request)
+    {
+        var review = await context.ProductReviews.FindAsync(id);
+        if (review is null) return NotFound(new { message = "Review not found." });
+        review.IsApproved = request.IsApproved;
+        await context.SaveChangesAsync();
+        return Ok(new { review.Id, review.IsApproved });
+    }
+
+    [Authorize(Roles = "Admin")]
     [HttpDelete("reviews/{id}")]
     public async Task<IActionResult> DeleteReview(int id)
     {
-        var review = await _context.ProductReviews.FindAsync(id);
+        var review = await context.ProductReviews.FindAsync(id);
         if (review == null)
         {
             return NotFound(new { message = "Review not found." });
         }
 
-        _context.ProductReviews.Remove(review);
-        await _context.SaveChangesAsync();
+        context.ProductReviews.Remove(review);
+        await context.SaveChangesAsync();
 
         return Ok(new { message = "Review deleted successfully." });
     }

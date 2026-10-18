@@ -1,4 +1,4 @@
-import React from "react";
+
 import {
   Box,
   Container,
@@ -6,9 +6,9 @@ import {
   Divider,
   useTheme,
 } from "@mui/material";
-import { Store, Phone, Mail, Place } from "@mui/icons-material";
+import { Store, Phone, Place } from "@mui/icons-material";
 
-export default function Footer({ setCurrentPage }) {
+export default function Footer({ setCurrentPage, shop }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
@@ -47,7 +47,7 @@ export default function Footer({ setCurrentPage }) {
               </Typography>
             </Box>
             <Typography variant="body2" sx={{ lineHeight: 1.5, color: "grey.400", fontSize: 13, maxWidth: 300 }}>
-              Delivering authentic taste, rich flavor, and absolute hygienic sweets across town since 1995.
+              Traditional sweets and fresh savories from Pradeep Sweets House.
             </Typography>
           </Box>
 
@@ -67,11 +67,16 @@ export default function Footer({ setCurrentPage }) {
                 { label: "Admin Login", page: "admin-login" },
               ].map((link) => (
                 <Typography
+                  component="button"
                   key={link.page}
                   variant="body2"
                   onClick={() => setCurrentPage(link.page)}
                   sx={{
                     cursor: "pointer",
+                    border: 0,
+                    background: "transparent",
+                    padding: 0,
+                    font: "inherit",
                     fontSize: 13,
                     color: "grey.400",
                     transition: "color 0.2s ease",
@@ -95,13 +100,13 @@ export default function Footer({ setCurrentPage }) {
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
               <Typography variant="body2" sx={{ fontSize: 13, color: "grey.400" }}>
-                Mon - Sat: 8:00 AM - 10:00 PM
+                {shop?.openingHours || "Loading shop hours..."}
               </Typography>
               <Typography variant="body2" sx={{ fontSize: 13, color: "grey.400" }}>
-                Sunday: 7:00 AM - 10:00 PM
+                {shop ? `Estimated delivery: ${shop.estimatedDeliveryMinutes} minutes` : ""}
               </Typography>
               <Typography variant="body2" sx={{ color: "primary.main", fontWeight: 600, fontSize: 12 }}>
-                Fresh batches delivered daily.
+                {shop ? `Local delivery to ${shop.deliveryPincodes.join(", ")}` : "Fresh batches prepared daily."}
               </Typography>
             </Box>
           </Box>
@@ -116,13 +121,10 @@ export default function Footer({ setCurrentPage }) {
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
               <Typography variant="body2" sx={{ display: "flex", alignItems: "center", gap: 0.75, fontSize: 13, color: "grey.400" }}>
-                <Phone sx={{ fontSize: 15 }} /> +91 98765 43210
+                <Phone sx={{ fontSize: 15 }} /> {shop?.phone && <a href={`tel:+91${shop.phone}`} style={{ color: "inherit" }}>{shop.phone}</a>}
               </Typography>
               <Typography variant="body2" sx={{ display: "flex", alignItems: "center", gap: 0.75, fontSize: 13, color: "grey.400" }}>
-                <Mail sx={{ fontSize: 15 }} /> contact@pradeepsweets.com
-              </Typography>
-              <Typography variant="body2" sx={{ display: "flex", alignItems: "center", gap: 0.75, fontSize: 13, color: "grey.400" }}>
-                <Place sx={{ fontSize: 15 }} /> Main Bazar Road, Delhi, IN
+                <Place sx={{ fontSize: 15 }} /> {shop?.address || "Loading shop address..."}
               </Typography>
             </Box>
           </Box>

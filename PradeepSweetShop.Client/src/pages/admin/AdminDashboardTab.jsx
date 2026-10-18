@@ -1,4 +1,4 @@
-import React from "react";
+
 import {
   Grid,
   Box,
@@ -15,7 +15,6 @@ import {
   Inventory,
   Notifications as NotificationsIcon,
   ChevronRight,
-  AccessTime,
 } from "@mui/icons-material";
 
 const GRADIENTS = {
@@ -26,8 +25,7 @@ const GRADIENTS = {
 };
 
 export default function AdminDashboardTab({
-  adminOrders,
-  adminProducts,
+  orderSummary,
   notifications,
   setNotifications,
   setAdminActiveTab,
@@ -35,17 +33,15 @@ export default function AdminDashboardTab({
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
-  const pendingCount = adminOrders.filter((o) => o.orderStatus === "Pending").length;
-  const preparingCount = adminOrders.filter((o) => o.orderStatus === "Preparing").length;
-  const revenue = adminOrders
-    .filter((o) => o.orderStatus === "Delivered")
-    .reduce((sum, o) => sum + o.totalAmount, 0);
+  const pendingCount = orderSummary.pending;
+  const preparingCount = orderSummary.preparing;
+  const revenue = orderSummary.revenue;
 
   const metrics = [
     { label: "Pending Orders", value: pendingCount, icon: <ShoppingCart />, gradient: GRADIENTS.amber },
     { label: "Preparing", value: preparingCount, icon: <Restaurant />, gradient: GRADIENTS.purple },
     { label: "Total Revenue", value: `₹${revenue.toLocaleString()}`, icon: <AttachMoney />, gradient: GRADIENTS.green },
-    { label: "Total Sweets", value: adminProducts.length, icon: <Inventory />, gradient: GRADIENTS.blue },
+    { label: "Total Sweets", value: orderSummary.products, icon: <Inventory />, gradient: GRADIENTS.blue },
   ];
 
   return (
@@ -53,7 +49,7 @@ export default function AdminDashboardTab({
       {/* Metric Cards */}
       <Grid container spacing={3}>
         {metrics.map((m) => (
-          <Grid item xs={12} sm={6} md={3} key={m.label}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={m.label}>
             <Paper
               elevation={0}
               sx={{
@@ -129,7 +125,7 @@ export default function AdminDashboardTab({
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Stack direction="row" spacing={1.5} alignItems="center">
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
             <Box
               sx={{
                 width: 8,
@@ -198,7 +194,7 @@ export default function AdminDashboardTab({
                       </Typography>
                     </Stack>
                   </Box>
-                  <Stack alignItems="flex-end" spacing={0.5}>
+                  <Stack spacing={0.5} sx={{ alignItems: "flex-end" }}>
                     <Typography sx={{ fontWeight: 800, fontSize: 15, color: "primary.main" }}>
                       ₹{notif.totalAmount}
                     </Typography>

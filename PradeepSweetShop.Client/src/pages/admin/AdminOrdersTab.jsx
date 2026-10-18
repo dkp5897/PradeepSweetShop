@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Paper,
   Box,
@@ -22,10 +22,13 @@ import {
   DialogContent,
   DialogActions,
   Grid,
+  Pagination,
+  TextField,
   useTheme,
 } from "@mui/material";
 import { ShoppingCart, Visibility, Close } from "@mui/icons-material";
 import { api } from "../../api";
+import { privateTrackingCode } from "../../checkout";
 
 const STATUS_COLORS = {
   Pending: { bg: "#fef3c7", color: "#92400e", dot: "#f59e0b" },
@@ -43,7 +46,7 @@ function StatusChip({ status }) {
     <Chip
       size="small"
       label={
-        <Stack direction="row" spacing={0.75} alignItems="center">
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
           <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: s.dot }} />
           <span>{label}</span>
         </Stack>
@@ -55,17 +58,20 @@ function StatusChip({ status }) {
 
 const STATUS_OPTIONS = ["Pending", "Confirmed", "Preparing", "OutForDelivery", "Delivered", "Cancelled"];
 
-export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilter, setOrderFilter }) {
+const NEXT_STATUS = { Pending: ["Confirmed", "Cancelled"], Confirmed: ["Preparing", "Cancelled"], Preparing: ["OutForDelivery", "Cancelled"], OutForDelivery: ["Delivered", "Cancelled"], Delivered: [], Cancelled: [] };
+const optionsFor = status => [status, ...(NEXT_STATUS[status] || [])];
+
+export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilter, setOrderFilter, orderPage, setOrderPage, orderTotal }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   const handleStatusChange = async (orderId, newStatus) => {
     try {
-      await api.updateOrderStatus(orderId, newStatus);
+      const response = await api.updateOrderStatus(orderId, newStatus);
       await fetchAdminData();
       if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder((prev) => ({ ...prev, orderStatus: newStatus }));
+        setSelectedOrder((prev) => ({ ...prev, orderStatus: response.status, paymentStatus: response.paymentStatus }));
       }
     } catch (err) {
       alert("Failed to update status. " + err.message);
@@ -77,10 +83,8 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
       {/* Header */}
       <Stack
         direction={{ xs: "column", sm: "row" }}
-        justifyContent="space-between"
-        alignItems={{ sm: "center" }}
         spacing={2}
-        sx={{ mb: 3 }}
+        sx={{ justifyContent: "space-between", alignItems: { sm: "center" }, mb: 3 }}
       >
         <Box>
           <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 13 }}>
@@ -190,7 +194,7 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
                       onChange={(e) => handleStatusChange(order.id, e.target.value)}
                       sx={{ fontSize: 12, fontWeight: 600, borderRadius: 2, minWidth: 130 }}
                     >
-                      {STATUS_OPTIONS.map((s) => (
+                      {optionsFor(order.orderStatus).map((s) => (
                         <MenuItem key={s} value={s} sx={{ fontSize: 12 }}>
                           {s === "OutForDelivery" ? "Out For Delivery" : s}
                         </MenuItem>
@@ -205,6 +209,7 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
       )}
 
       {/* Order Detail Dialog */}
+      {orderTotal > 50 && <Pagination page={orderPage} count={Math.ceil(orderTotal / 50)} onChange={(_, page) => setOrderPage(page)} sx={{ mt: 3 }} />}
       {selectedOrder && (
         <Dialog open={!!selectedOrder} onClose={() => setSelectedOrder(null)} maxWidth="sm" fullWidth>
           <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pb: 1 }}>
@@ -219,6 +224,8 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
             </IconButton>
           </DialogTitle>
           <DialogContent dividers>
+            <TextField fullWidth label="Customer private tracking code" value={privateTrackingCode(selectedOrder)}
+              slotProps={{ input: { readOnly: true } }} helperText="Share only with the customer after verifying their order details." size="small" sx={{ mt: 1, mb: 2 }} />
             <Stack spacing={3}>
               {/* Customer Details */}
               <Paper
@@ -234,25 +241,25 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
                   Customer Details
                 </Typography>
                 <Grid container spacing={1} sx={{ fontSize: 13 }}>
-                  <Grid item xs={3}><strong>Name:</strong></Grid>
-                  <Grid item xs={9}>{selectedOrder.customerName}</Grid>
-                  <Grid item xs={3}><strong>Phone:</strong></Grid>
-                  <Grid item xs={9}>{selectedOrder.customerPhone}</Grid>
-                  <Grid item xs={3}><strong>Email:</strong></Grid>
-                  <Grid item xs={9}>{selectedOrder.customerEmail || "--"}</Grid>
-                  <Grid item xs={3}><strong>Address:</strong></Grid>
-                  <Grid item xs={9}>{selectedOrder.deliveryAddress}</Grid>
+                  <Grid size={{ xs: 3 }} ><strong>Name:</strong></Grid>
+                  <Grid size={{ xs: 9 }} >{selectedOrder.customerName}</Grid>
+                  <Grid size={{ xs: 3 }} ><strong>Phone:</strong></Grid>
+                  <Grid size={{ xs: 9 }} >{selectedOrder.customerPhone}</Grid>
+                  <Grid size={{ xs: 3 }} ><strong>Email:</strong></Grid>
+                  <Grid size={{ xs: 9 }} >{selectedOrder.customerEmail || "--"}</Grid>
+                  <Grid size={{ xs: 3 }} ><strong>Address:</strong></Grid>
+                  <Grid size={{ xs: 9 }} >{selectedOrder.deliveryAddress}</Grid>
                   {selectedOrder.orderNotes && (
                     <>
-                      <Grid item xs={3}><strong>Notes:</strong></Grid>
-                      <Grid item xs={9}><em>"{selectedOrder.orderNotes}"</em></Grid>
+                      <Grid size={{ xs: 3 }} ><strong>Notes:</strong></Grid>
+                      <Grid size={{ xs: 9 }} ><em>"{selectedOrder.orderNotes}"</em></Grid>
                     </>
                   )}
                 </Grid>
               </Paper>
 
               {/* Status Update */}
-              <Stack direction="row" spacing={2} alignItems="center">
+              <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                 <Typography sx={{ fontWeight: 700, fontSize: 13 }}>Update Status:</Typography>
                 <Select
                   size="small"
@@ -260,7 +267,7 @@ export default function AdminOrdersTab({ adminOrders, fetchAdminData, orderFilte
                   onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value)}
                   sx={{ minWidth: 160, fontSize: 13, borderRadius: 2 }}
                 >
-                  {STATUS_OPTIONS.map((s) => (
+                  {optionsFor(selectedOrder.orderStatus).map((s) => (
                     <MenuItem key={s} value={s} sx={{ fontSize: 13 }}>
                       {s === "OutForDelivery" ? "Out For Delivery" : s}
                     </MenuItem>

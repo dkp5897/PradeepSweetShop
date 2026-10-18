@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -24,6 +24,7 @@ import {
   DialogActions,
   Button,
   useTheme,
+  Pagination,
 } from "@mui/material";
 import { Search, Delete, Star, RateReview } from "@mui/icons-material";
 import { api } from "../../api";
@@ -38,21 +39,23 @@ export default function AdminReviewsTab() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    fetchReviews();
-  }, []);
+    let disposed = false;
+    api.getAdminReviews(page).then(data => {
+      if (!disposed) { setReviews(data.items); setTotal(data.total); }
+    }).catch(error => { if (!disposed) setAlertMsg(error.message); })
+      .finally(() => { if (!disposed) setLoading(false); });
+    return () => { disposed = true; };
+  }, [page]);
 
-  const fetchReviews = async () => {
+  const toggleApproval = async review => {
     try {
-      setLoading(true);
-      const data = await api.getAdminReviews();
-      setReviews(data || []);
-    } catch (err) {
-      console.error("Failed to load admin reviews:", err);
-    } finally {
-      setLoading(false);
-    }
+      await api.approveReview(review.id, !review.isApproved);
+      setReviews(prev => prev.map(item => item.id === review.id ? { ...item, isApproved: !item.isApproved } : item));
+    } catch (error) { setAlertMsg(error.message); }
   };
 
   const handleDelete = async () => {
@@ -97,13 +100,13 @@ export default function AdminReviewsTab() {
           placeholder="Search reviews..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          InputProps={{
+          slotProps={{ input: {
             startAdornment: (
               <InputAdornment position="start">
                 <Search sx={{ color: isDark ? "rgba(255,255,255,0.3)" : "#94a3b8", fontSize: 18 }} />
               </InputAdornment>
             ),
-          }}
+          } }}
           sx={{
             width: { xs: "100%", sm: 280 },
             "& .MuiOutlinedInput-root": {
@@ -191,6 +194,8 @@ export default function AdminReviewsTab() {
                     {new Date(r.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell align="right">
+                    <Chip size="small" label={r.isApproved ? "Published" : "Pending approval"} color={r.isApproved ? "success" : "warning"} sx={{ mb: 1 }} />
+                    <Button size="small" onClick={() => toggleApproval(r)}>{r.isApproved ? "Unpublish" : "Approve"}</Button>
                     <Tooltip title="Delete Review">
                       <IconButton
                         size="small"
@@ -212,6 +217,7 @@ export default function AdminReviewsTab() {
         </TableContainer>
       )}
 
+      {total > 20 && <Pagination page={page} count={Math.ceil(total / 20)} onChange={(_, value) => { setLoading(true); setPage(value); }} sx={{ mt: 3 }} />}
       {/* Delete Confirmation Dialog */}
       <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
         <DialogTitle sx={{ fontWeight: 700 }}>Confirm Delete Review</DialogTitle>

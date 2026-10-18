@@ -1,302 +1,219 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
-import { ThemeProvider, CssBaseline, Box, Snackbar, Alert } from "@mui/material";
-
+import { useState, useEffect, useRef, useMemo, useCallback, useSyncExternalStore, lazy, Suspense } from "react";
+import { ThemeProvider, CssBaseline, Box, Snackbar, Alert, Button, CircularProgress } from "@mui/material";
 import getTheme from "./theme";
-import { ThemeModeProvider, useThemeMode } from "./context/ThemeContext";
+import { ThemeModeProvider } from "./context/ThemeContext";
+import { useThemeMode } from "./context/themeMode";
 import { api, createHubConnection } from "./api";
-
-// Shared Components
+import { readStored, writeStored, getAdminToken, clearAdminSession } from "./storage";
+import { validCart, privateTrackingCode, parseTrackingCode } from "./checkout";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import CartDrawer from "./components/CartDrawer";
-
-// Customer Pages
 import HomePage from "./pages/HomePage";
-import ShopPage from "./pages/ShopPage";
-import CheckoutPage from "./pages/CheckoutPage";
-import OrderTrackingPage from "./pages/OrderTrackingPage";
+const ShopPage = lazy(() => import("./pages/ShopPage"));
+const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
+const OrderTrackingPage = lazy(() => import("./pages/OrderTrackingPage"));
+const AdminLoginPage = lazy(() => import("./pages/admin/AdminLoginPage"));
+const AdminPortal = lazy(() => import("./pages/admin/AdminPortal"));
 
-// Admin Pages
-import AdminLoginPage from "./pages/admin/AdminLoginPage";
-import AdminPortal from "./pages/admin/AdminPortal";
+const PAGES = new Set(["home", "shop", "checkout", "track", "admin-login", "admin"]);
+const route = () => {
+  const page = window.location.hash.slice(2).split("?")[0];
+  return PAGES.has(page) ? page : "home";
+};
+const subscribeRoute = listener => {
+  window.addEventListener("hashchange", listener);
+  return () => window.removeEventListener("hashchange", listener);
+};
+function readReceipt() {
+  const value = readStored("last_order", null, true);
+  return value && parseTrackingCode(privateTrackingCode(value)) && Array.isArray(value.orderItems) ? value : null;
+}
 
 function AppContent() {
   const { mode } = useThemeMode();
   const theme = useMemo(() => getTheme(mode), [mode]);
-
-  // Navigation State
-  const [currentPage, setCurrentPage] = useState("home");
-
-  // Shop & Category State
+  const currentPage = useSyncExternalStore(subscribeRoute, route);
+  const setCurrentPage = useCallback(page => { window.location.hash = "/" + page; }, []);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [shop, setShop] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [loadingProducts, setLoadingProducts] = useState(false);
-
-  // Cart State
-  const [cart, setCart] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [catalogError, setCatalogError] = useState("");
+  const [catalogTotal, setCatalogTotal] = useState(0);
+  const [catalogPage, setCatalogPage] = useState(1);
+  const catalogRequest = useRef(0);
+  const catalogCriteria = useRef({ category: null, search: "" });
+  const [cart, setCart] = useState(() => validCart(readStored("sweet_cart", [])));
   const [isCartOpen, setIsCartOpen] = useState(false);
-
-  // Order Tracking State
-  const [trackingOrderNumber, setTrackingOrderNumber] = useState("");
-  const [trackedOrder, setTrackedOrder] = useState(null);
+  const [trackedOrder, setTrackedOrder] = useState(readReceipt);
+  const [trackingOrderNumber, setTrackingOrderNumber] = useState(() => privateTrackingCode(readReceipt()));
   const [trackingLoading, setTrackingLoading] = useState(false);
-
-  // Admin Auth State
-  const [adminUser, setAdminUser] = useState(
-    JSON.parse(localStorage.getItem("admin_user")) || null
-  );
-  const [adminToken, setAdminToken] = useState(
-    localStorage.getItem("admin_token") || null
-  );
-
-  // Admin View State
+  const [trackingError, setTrackingError] = useState("");
+  const [trackingConnection, setTrackingConnection] = useState("offline");
+  const [adminUser, setAdminUser] = useState(() => readStored("admin_user", null, true));
+  const [adminToken, setAdminToken] = useState(getAdminToken);
   const [adminActiveTab, setAdminActiveTab] = useState("dashboard");
   const [adminOrders, setAdminOrders] = useState([]);
   const [adminProducts, setAdminProducts] = useState([]);
   const [adminCategories, setAdminCategories] = useState([]);
-  const [orderFilter, setOrderFilter] = useState("");
-
-  // Real-Time Notifications
+  const [orderSummary, setOrderSummary] = useState({ pending: 0, preparing: 0, revenue: 0, products: 0 });
+  const [orderFilter, updateOrderFilter] = useState("");
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderTotal, setOrderTotal] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [activeAlert, setActiveAlert] = useState(null);
   const [alertOpen, setAlertOpen] = useState(false);
+  const adminRequest = useRef(0);
 
-  // SignalR References
-  const hubConnectionRef = useRef(null);
+  const showStatusAlert = useCallback(message => { setActiveAlert(message); setAlertOpen(true); }, []);
+  const handleAlertClose = (event, reason) => { if (reason !== "clickaway") setAlertOpen(false); };
+  const handleAdminLogout = useCallback(() => {
+    clearAdminSession();
+    setAdminToken(null); setAdminUser(null); setNotifications([]);
+    setAdminOrders([]); setAdminProducts([]); setAdminCategories([]);
+    setCurrentPage("home");
+  }, [setCurrentPage]);
+  const setOrderFilter = value => { updateOrderFilter(value); setOrderPage(1); };
 
-  // ---- Initial Data Load ----
-  useEffect(() => {
-    fetchCategories();
-    fetchProducts();
+  const fetchProducts = useCallback((catId = null, search = "", page = 1) => {
+    const request = ++catalogRequest.current;
+    catalogCriteria.current = { category: catId, search };
+    return api.getProducts(catId, search, page).then(data => {
+      if (request !== catalogRequest.current) return;
+      setCatalogError(""); setCatalogPage(page);
+      setCatalogTotal(data.total);
+      setProducts(data.items.map(p => ({ ...p,
+        selectedVariant: p.prices?.find(v => v.isAvailable && v.stockQuantity > 0) || null,
+      })));
+    }).catch(error => {
+      if (request === catalogRequest.current) { setProducts([]); setCatalogError(error.message); }
+    }).finally(() => {
+      if (request === catalogRequest.current) setLoadingProducts(false);
+    });
   }, []);
 
-  // ---- Admin: SignalR + Data Sync on Auth Change ----
-  useEffect(() => {
-    if (adminToken) {
-      fetchAdminData();
-      setupSignalRAdmin();
-    } else {
-      if (hubConnectionRef.current) {
-        hubConnectionRef.current.stop();
-        hubConnectionRef.current = null;
-      }
-    }
-    return () => {
-      if (hubConnectionRef.current) hubConnectionRef.current.stop();
-    };
-  }, [adminToken]);
+  const fetchCategories = useCallback(() => {
+    return api.getCategories().then(setCategories).catch(error => setCatalogError(error.message));
+  }, []);
+  const fetchShop = useCallback(() => api.getShop().then(setShop).catch(error => setCatalogError(error.message)), []);
 
-  // ---- Customer: SignalR Order Tracking ----
-  useEffect(() => {
-    let customerHubConn = null;
-    if (currentPage === "track" && trackedOrder) {
-      customerHubConn = createHubConnection();
-      customerHubConn
-        .start()
-        .then(() => {
-          console.log("Customer SignalR connected");
-          customerHubConn.invoke("JoinOrderTracker", trackedOrder.orderNumber);
-        })
-        .catch((err) => console.error("Customer SignalR failed to start:", err));
+  const fetchAdminData = useCallback(() => {
+    const request = ++adminRequest.current;
+    return Promise.all([
+        api.getAdminOrders(orderFilter, orderPage), api.getAdminProducts(), api.getAdminCategories(), api.getOrderSummary(),
+      ]).then(([orders, prods, cats, summary]) => {
+      if (request !== adminRequest.current || !getAdminToken()) return;
+      setAdminOrders(orders.items); setOrderTotal(orders.total);
+      setAdminProducts(prods); setAdminCategories(cats);
+      setOrderSummary(summary);
+      }).catch(error => showStatusAlert(error.message));
+  }, [orderFilter, orderPage, showStatusAlert]);
 
-      customerHubConn.on("OrderStatusUpdated", (update) => {
-        setTrackedOrder((prev) => {
-          if (prev && prev.orderNumber === update.orderNumber) {
-            return { ...prev, orderStatus: update.status, paymentStatus: update.paymentStatus };
-          }
-          return prev;
-        });
-        showStatusAlert(`Order ${update.orderNumber} status updated to: ${update.status}`);
+  useEffect(() => { fetchCategories(); fetchProducts(); fetchShop(); }, [fetchCategories, fetchProducts, fetchShop]);
+  useEffect(() => { writeStored("sweet_cart", cart); }, [cart]);
+  useEffect(() => { writeStored("last_order", trackedOrder, true); }, [trackedOrder]);
+  useEffect(() => {
+    window.addEventListener("admin-session-expired", handleAdminLogout);
+    return () => window.removeEventListener("admin-session-expired", handleAdminLogout);
+  }, [handleAdminLogout]);
+  useEffect(() => { if (adminToken) fetchAdminData(); }, [adminToken, fetchAdminData]);
+
+  useEffect(() => {
+    if (!adminToken) return;
+    let connection, disposed = false;
+    async function connect() {
+      connection = await createHubConnection(true);
+      if (disposed) return;
+      const join = async () => {
+        await connection.invoke("JoinAdminDashboard");
+        await fetchAdminData();
+      };
+      connection.onreconnected(join);
+      connection.on("NewOrderReceived", order => {
+        setNotifications(prev => [order, ...prev].slice(0, 50));
+        showStatusAlert(`New order received: ${order.orderNumber}`);
+        fetchAdminData();
       });
+      await connection.start();
+      if (disposed) { await connection.stop(); return; }
+      await join();
     }
+    connect().catch(error => { if (!disposed) showStatusAlert("Live alerts are unavailable. Refresh orders to check for new orders. " + error.message); });
+    return () => { disposed = true; connection?.stop().catch(() => {}); };
+  }, [adminToken, fetchAdminData, showStatusAlert]);
 
-    return () => {
-      if (customerHubConn) {
-        if (trackedOrder) {
-          customerHubConn.invoke("LeaveOrderTracker", trackedOrder.orderNumber).catch(() => { });
-        }
-        customerHubConn.stop();
-      }
-    };
-  }, [currentPage, trackedOrder?.orderNumber]);
-
-  // ---- Admin: Refetch Orders when Filter Changes ----
+  const trackedNumber = trackedOrder?.orderNumber;
+  const trackedToken = trackedOrder?.trackingToken;
   useEffect(() => {
-    if (adminToken) {
-      api.getAdminOrders(orderFilter).then(setAdminOrders).catch(console.error);
+    if (currentPage !== "track" || !trackedNumber || !trackedToken) return;
+    let connection, disposed = false;
+    async function connect() {
+      setTrackingConnection("connecting");
+      connection = await createHubConnection();
+      if (disposed) return;
+      const sync = async () => {
+        await connection.invoke("JoinOrderTracker", trackedNumber, trackedToken);
+        const latest = await api.trackOrder(trackedNumber, trackedToken);
+        if (!disposed) { setTrackedOrder(latest); setTrackingConnection("live"); }
+      };
+      connection.onreconnecting(() => { if (!disposed) setTrackingConnection("reconnecting"); });
+      connection.onclose(() => { if (!disposed) setTrackingConnection("offline"); });
+      connection.onreconnected(() => sync().catch(() => { if (!disposed) setTrackingConnection("offline"); }));
+      connection.on("OrderStatusUpdated", update => {
+        if (disposed) return;
+        setTrackedOrder(prev => prev?.orderNumber === update.orderNumber
+          ? { ...prev, orderStatus: update.status, paymentStatus: update.paymentStatus } : prev);
+      });
+      await connection.start();
+      if (disposed) { await connection.stop(); return; }
+      await sync();
     }
-  }, [orderFilter]);
+    connect().catch(() => { if (!disposed) setTrackingConnection("offline"); });
+    return () => { disposed = true; connection?.stop().catch(() => {}); };
+  }, [currentPage, trackedNumber, trackedToken]);
 
-  // ---- Alert Helpers ----
-  const showStatusAlert = (message) => {
-    setActiveAlert(message);
-    setAlertOpen(true);
-  };
-
-  const handleAlertClose = (event, reason) => {
-    if (reason === "clickaway") return;
-    setAlertOpen(false);
-  };
-
-  // ---- Data Fetch Helpers ----
-  const fetchCategories = async () => {
-    try {
-      const data = await api.getCategories();
-      setCategories(data);
-    } catch (err) {
-      console.error("Failed to load categories:", err);
-    }
-  };
-
-  const fetchProducts = async (catId = null, search = "") => {
-    setLoadingProducts(true);
-    try {
-      const data = await api.getProducts(catId, search);
-      const mapped = data.map((p) => ({
-        ...p,
-        selectedVariant: p.prices && p.prices.length > 0 ? p.prices[0] : null,
-      }));
-      setProducts(mapped);
-    } catch (err) {
-      console.error("Failed to load products:", err);
-    } finally {
-      setLoadingProducts(false);
-    }
-  };
-
-  const fetchAdminData = async () => {
-    try {
-      const orders = await api.getAdminOrders(orderFilter);
-      setAdminOrders(orders);
-      const prods = await api.getAdminProducts();
-      setAdminProducts(prods);
-      const cats = await api.getAdminCategories();
-      setAdminCategories(cats);
-    } catch (err) {
-      console.error("Failed to load admin data:", err);
-    }
-  };
-
-  // ---- SignalR Admin Setup ----
-  const setupSignalRAdmin = () => {
-    if (hubConnectionRef.current) return;
-
-    const connection = createHubConnection();
-    hubConnectionRef.current = connection;
-
-    connection
-      .start()
-      .then(() => {
-        console.log("Admin SignalR Connected");
-        connection.invoke("JoinAdminDashboard");
-      })
-      .catch((err) => console.error("Admin SignalR Connection Failed:", err));
-
-    connection.on("NewOrderReceived", (newOrder) => {
-      setNotifications((prev) => [newOrder, ...prev]);
-      showStatusAlert(`🔔 New Order Received! Order Ref: ${newOrder.orderNumber}`);
-      setAdminOrders((prev) => [newOrder, ...prev]);
-    });
-  };
-
-  // ---- Auth Handlers ----
-  const handleAdminLogout = () => {
-    localStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_user");
-    setAdminToken(null);
-    setAdminUser(null);
-    setCurrentPage("home");
-  };
-
-  // ---- Cart Handlers ----
-  const handleAddToCart = (product) => {
+  const handleAddToCart = product => {
     const variant = product.selectedVariant;
-    if (!variant) return;
-
-    setCart((prev) => {
-      const existing = prev.find(
-        (item) => item.productId === product.id && item.variantId === variant.id
-      );
-      if (existing) {
-        if (existing.quantity >= variant.stockQuantity) {
-          alert(`Sorry, only ${variant.stockQuantity} units available in stock.`);
-          return prev;
-        }
-        return prev.map((item) =>
-          item.productId === product.id && item.variantId === variant.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      } else {
-        return [
-          ...prev,
-          {
-            productId: product.id,
-            productName: product.name,
-            imageUrl: product.imageUrl,
-            variantId: variant.id,
-            unit: variant.unit,
-            price: variant.price,
-            quantity: 1,
-            maxStock: variant.stockQuantity,
-          },
-        ];
-      }
-    });
-  };
-
-  const handleUpdateCartQty = (productId, variantId, delta) => {
-    setCart((prev) =>
-      prev
-        .map((item) => {
-          if (item.productId === productId && item.variantId === variantId) {
-            const newQty = item.quantity + delta;
-            if (newQty <= 0) return null;
-            if (newQty > item.maxStock) {
-              alert(`Only ${item.maxStock} units available.`);
-              return item;
-            }
-            return { ...item, quantity: newQty };
-          }
-          return item;
-        })
-        .filter(Boolean)
-    );
-  };
-
-  const getCartTotal = () =>
-    cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-  // ---- Shop Handlers ----
-  const handleCategorySelect = (catId) => {
-    setSelectedCategory(catId);
-    fetchProducts(catId, searchQuery);
-  };
-
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    fetchProducts(selectedCategory, searchQuery);
-  };
-
-  // ---- Order Track Handler ----
-  const handleTrackSubmit = async (e, directNumber = "") => {
-    if (e) e.preventDefault();
-    const num = directNumber || trackingOrderNumber;
-    if (!num) return;
-    setTrackingLoading(true);
-    try {
-      const order = await api.trackOrder(num);
-      setTrackedOrder(order);
-      setCurrentPage("track");
-    } catch (err) {
-      alert("Order not found. Please verify the order number.");
-      setTrackedOrder(null);
-    } finally {
-      setTrackingLoading(false);
+    if (!variant || !variant.isAvailable || variant.stockQuantity <= 0) return;
+    const existing = cart.find(i => i.productId === product.id && i.variantId === variant.id);
+    if (existing && existing.quantity >= Math.min(variant.stockQuantity, 100)) {
+      showStatusAlert(`Only ${Math.min(variant.stockQuantity, 100)} units can be ordered.`); return;
     }
+    setCart(prev => existing
+      ? prev.map(i => i.productId === product.id && i.variantId === variant.id ? { ...i, quantity: i.quantity + 1 } : i)
+      : [...prev, { productId: product.id, productName: product.name, imageUrl: product.imageUrl,
+        variantId: variant.id, unit: variant.unit, price: variant.price, quantity: 1, maxStock: variant.stockQuantity }]);
+    showStatusAlert(`${product.name} (${variant.unit}) added to your cart.`);
   };
+  const handleUpdateCartQty = (productId, variantId, delta) => {
+    const item = cart.find(i => i.productId === productId && i.variantId === variantId);
+    if (item && item.quantity + delta > Math.min(item.maxStock, 100)) {
+      showStatusAlert(`Only ${Math.min(item.maxStock, 100)} units can be ordered.`); return;
+    }
+    setCart(prev => prev.map(i => i.productId === productId && i.variantId === variantId
+      ? { ...i, quantity: i.quantity + delta } : i).filter(i => i.quantity > 0));
+  };
+  const getCartTotal = () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const startCatalogLoad = (category = null, search = "", page = 1) => { setLoadingProducts(true); setCatalogError(""); return fetchProducts(category, search, page); };
+  const handleCategorySelect = catId => { setSelectedCategory(catId); startCatalogLoad(catId, searchQuery); };
+  const handleSearchSubmit = event => { event.preventDefault(); startCatalogLoad(selectedCategory, searchQuery); };
+  const handleVariantChange = (id, variant) => setProducts(prev => prev.map(p =>
+    p.id === id ? { ...p, selectedVariant: variant } : p));
+  const handleTrackSubmit = async event => {
+    event?.preventDefault();
+    const receipt = parseTrackingCode(trackingOrderNumber);
+    if (!receipt) { setTrackingError("Enter the complete private tracking code from your order confirmation."); return; }
+    setTrackingLoading(true); setTrackingError("");
+    try {
+      setTrackedOrder(await api.trackOrder(receipt.orderNumber, receipt.token));
+      setCurrentPage("track");
+    } catch (error) { setTrackingError(error.message); setTrackedOrder(null); }
+    finally { setTrackingLoading(false); }
+  };
+
 
   const isAdmin = currentPage === "admin" || currentPage === "admin-login";
 
@@ -329,13 +246,15 @@ function AppContent() {
             setCurrentPage={setCurrentPage}
             cart={cart}
             setIsCartOpen={setIsCartOpen}
-            fetchProducts={fetchProducts}
+            fetchProducts={() => { setSelectedCategory(null); setSearchQuery(""); startCatalogLoad(); }}
             adminToken={adminToken}
           />
         )}
 
         {/* Page Content */}
         <Box sx={{ flexGrow: 1, py: currentPage === "home" || isAdmin ? 0 : 4 }}>
+          {catalogError && !isAdmin && <Alert severity="error" sx={{ m: 2 }} action={<Button color="inherit" onClick={() => { fetchShop(); fetchCategories(); startCatalogLoad(catalogCriteria.current.category, catalogCriteria.current.search, catalogPage); }}>Retry</Button>}>{catalogError}</Alert>}
+          <Suspense fallback={<Box sx={{ p: 6, textAlign: "center" }}><CircularProgress aria-label="Loading page" /></Box>}>
           {currentPage === "home" && (
             <HomePage
               setCurrentPage={setCurrentPage}
@@ -343,6 +262,8 @@ function AppContent() {
               handleCategorySelect={handleCategorySelect}
               products={products}
               handleAddToCart={handleAddToCart}
+              onVariantChange={handleVariantChange}
+              loadingProducts={loadingProducts}
             />
           )}
 
@@ -357,12 +278,18 @@ function AppContent() {
               handleSearchSubmit={handleSearchSubmit}
               loadingProducts={loadingProducts}
               setProducts={setProducts}
+              catalogPage={catalogPage}
+              catalogTotal={catalogTotal}
+              onPageChange={page => startCatalogLoad(catalogCriteria.current.category, catalogCriteria.current.search, page)}
+              clearFilters={() => { setSearchQuery(""); setSelectedCategory(null); startCatalogLoad(); }}
               handleAddToCart={handleAddToCart}
             />
           )}
 
           {currentPage === "checkout" && (
             <CheckoutPage
+              shop={shop}
+              onNotice={showStatusAlert}
               cart={cart}
               setCart={setCart}
               getCartTotal={getCartTotal}
@@ -380,10 +307,12 @@ function AppContent() {
               setTrackingOrderNumber={setTrackingOrderNumber}
               handleTrackSubmit={handleTrackSubmit}
               trackingLoading={trackingLoading}
+              trackingError={trackingError}
+              connectionStatus={trackingConnection}
             />
           )}
 
-          {currentPage === "admin-login" && (
+          {(currentPage === "admin-login" || (currentPage === "admin" && !adminToken)) && (
             <AdminLoginPage
               setAdminUser={setAdminUser}
               setAdminToken={setAdminToken}
@@ -391,8 +320,9 @@ function AppContent() {
             />
           )}
 
-          {currentPage === "admin" && (
+          {currentPage === "admin" && adminToken && (
             <AdminPortal
+              onNotice={showStatusAlert}
               adminUser={adminUser}
               handleAdminLogout={handleAdminLogout}
               adminActiveTab={adminActiveTab}
@@ -404,14 +334,19 @@ function AppContent() {
               notifications={notifications}
               setNotifications={setNotifications}
               orderFilter={orderFilter}
+              orderPage={orderPage}
+              setOrderPage={setOrderPage}
+              orderTotal={orderTotal}
+              orderSummary={orderSummary}
               setOrderFilter={setOrderFilter}
               setCurrentPage={setCurrentPage}
             />
           )}
+          </Suspense>
         </Box>
 
         {/* Footer */}
-        {!isAdmin && <Footer setCurrentPage={setCurrentPage} />}
+        {!isAdmin && <Footer setCurrentPage={setCurrentPage} shop={shop} />}
 
         {/* Cart Slide-Out Drawer */}
         <CartDrawer
